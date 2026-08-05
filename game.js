@@ -343,7 +343,7 @@
 
   function createSeiffenLevel() {
     const meta = LEVELS[0];
-    const worldWidth = 6000;
+    const worldWidth = 7150;
     const ground = (id, x, y, w) => ({
       id, x, y, baseX: x, baseY: y, w, h: H - y + 80, ground: true, type: "earth",
     });
@@ -365,6 +365,7 @@
       ground("s-g5", 3605, 625, 555),
       ground("s-g6", 4290, 585, 510),
       ground("s-g7", 4930, 615, 1070),
+      ground("s-g8", 6120, 600, 1030),
 
       ledge("s-tutorial-1", 420, 500, 165, "stone"),
       ledge("s-tutorial-2", 625, 410, 165, "wood"),
@@ -396,6 +397,10 @@
       ledge("s-final-4", 5170, 470, 225, "roof"),
       ledge("s-final-5", 5485, 385, 190, "wood"),
       ledge("s-final-6", 5710, 495, 170, "stone"),
+      ledge("s-final-7", 6050, 455, 170, "wood", { range: 34, speed: .7, axis: "y", phase: .4 }),
+      ledge("s-final-8", 6320, 350, 190, "roof"),
+      ledge("s-final-9", 6600, 440, 175, "stone"),
+      ledge("s-final-10", 6860, 330, 175, "wood"),
     ];
 
     const crystalPositions = [
@@ -406,7 +411,8 @@
       [2930, 415], [3185, 320], [3410, 410], [3660, 560],
       [3805, 430], [4045, 335], [4315, 520], [4490, 390],
       [4705, 295], [4960, 550], [5250, 410], [5565, 325],
-      [5780, 435], [5870, 550],
+      [5780, 435], [5870, 550], [6135, 540], [6225, 505],
+      [6415, 285], [6690, 375], [6950, 265], [7050, 540],
     ];
     const collectibles = crystalPositions.map(([x, y], index) => ({
       id: `seiffen-c-${index}`,
@@ -423,6 +429,7 @@
       { x: 3315, y: 566, baseX: 3315, r: 25, range: 78, speed: .84, phase: 2.7 },
       { x: 3910, y: 591, baseX: 3910, r: 25, range: 62, speed: .9, phase: .9 },
       { x: 5280, y: 581, baseX: 5280, r: 26, range: 94, speed: .94, phase: 2.2 },
+      { x: 6510, y: 466, baseX: 6510, baseY: 466, r: 21, range: 72, verticalRange: 20, speed: .82, phase: 1.4, kind: "flutter" },
     ];
 
     return {
@@ -436,9 +443,14 @@
         { x: 1150, y: 592, w: 54, h: 18 },
         { x: 3235, y: 582, w: 54, h: 18 },
         { x: 4560, y: 567, w: 54, h: 18 },
+        { x: 6200, y: 582, w: 54, h: 18 },
       ],
-      goal: { x: 5820, y: 499, w: 72, h: 116 },
-      checkpoint: { x: 3050, y: 514, active: false },
+      goal: { x: 7000, y: 484, w: 72, h: 116 },
+      checkpoints: [
+        { x: 1990, y: 504, active: false, label: "Werkstatt-Rast" },
+        { x: 4440, y: 499, active: false, label: "Fichten-Rast" },
+      ],
+      checkpoint: { x: 1990, y: 504, active: false, label: "Werkstatt-Rast" },
       start: { x: 92, y: 522 },
       collected: 0,
       mechanic: "Grundlagen zwischen Holzwerkstätten",
@@ -459,7 +471,7 @@
         { type: "log-pile", x: 3680, y: 625, scale: 1 },
         { type: "workshop", x: 4415, y: 585, scale: .76 },
         { type: "toy-arch", x: 5070, y: 615, scale: .82 },
-        { type: "finish-house", x: 5650, y: 615, scale: .9 },
+        { type: "finish-house", x: 6860, y: 600, scale: .9 },
       ],
     };
   }
@@ -513,7 +525,11 @@
       hazards,
       springs: [],
       goal: { x: 5920, y: 280, w: 82, h: 122 },
-      checkpoint: { x: 3070, y: 330, active: false },
+      checkpoints: [
+        { x: 2090, y: 330, active: false, label: "Versunkene Lore" },
+        { x: 4240, y: 330, active: false, label: "Kristallbucht" },
+      ],
+      checkpoint: { x: 2090, y: 330, active: false, label: "Versunkene Lore" },
       start: { x: 90, y: 340 },
       collected: 0,
       mechanic: "Freies Tauchen durch Strömungen und versunkene Schächte",
@@ -548,7 +564,7 @@
       return seiffen;
     }
     const rng = seededRandom(9103 + index * 719);
-    const worldWidth = 4550 + index * 140;
+    const worldWidth = 6800 + index * 210;
     const platforms = [];
     const collectibles = [];
     const hazards = [];
@@ -558,7 +574,12 @@
 
     while (cursor < worldWidth - 280) {
       const segmentIndex = platforms.filter((item) => item.ground).length;
-      const width = Math.min(470 + rng() * 280, worldWidth - cursor);
+      const passage = segmentIndex % 4;
+      const isSprintPassage = passage === 0 || passage === 3;
+      const width = Math.min(
+        (isSprintPassage ? 720 + rng() * 190 : 405 + rng() * 185),
+        worldWidth - cursor,
+      );
       const y = segmentIndex === 0 ? 610 : 570 + rng() * 66;
       const platform = {
         id: `p-${platformId++}`,
@@ -570,14 +591,15 @@
         h: H - y + 80,
         ground: true,
         type: index === 2 ? "mine" : index === 5 ? "roof" : "earth",
+        sprintPassage: isSprintPassage,
       };
       platforms.push(platform);
 
-      const elevatedCount = 2 + (rng() > 0.58 ? 1 : 0);
+      const elevatedCount = isSprintPassage ? 1 : 3 + (rng() > 0.52 ? 1 : 0);
       for (let j = 0; j < elevatedCount; j += 1) {
-        const elevatedWidth = 135 + rng() * 95;
+        const elevatedWidth = isSprintPassage ? 180 + rng() * 80 : 120 + rng() * 85;
         const px = cursor + 90 + rng() * Math.max(90, width - elevatedWidth - 140);
-        const py = y - 100 - j * 88 - rng() * 20;
+        const py = isSprintPassage ? y - 108 - rng() * 25 : y - 100 - j * 82 - rng() * 30;
         platforms.push({
           id: `p-${platformId++}`,
           x: px,
@@ -587,8 +609,8 @@
           w: elevatedWidth,
           h: 26,
           ground: false,
-          type: (segmentIndex + j + index) % 3 === 0 ? "wood" : "stone",
-          moving: segmentIndex > 0 && (segmentIndex + j + index) % 5 === 0,
+          type: levelPlatformType(index, segmentIndex, j),
+          moving: !isSprintPassage && segmentIndex > 0 && (segmentIndex + j + index) % 4 === 0,
           moveRange: 55 + rng() * 70,
           moveSpeed: 0.55 + rng() * 0.45,
           moveAxis: rng() > 0.45 ? "x" : "y",
@@ -596,18 +618,18 @@
         });
       }
 
-      const count = 3 + Math.floor(rng() * 3);
+      const count = isSprintPassage ? 6 + Math.floor(rng() * 2) : 4 + Math.floor(rng() * 2);
       for (let j = 0; j < count; j += 1) {
         collectibles.push({
           id: `c-${segmentIndex}-${j}`,
-          x: cursor + 125 + (j * (width - 230)) / Math.max(1, count - 1),
-          y: y - 64 - (j % 2) * 18,
+          x: cursor + 105 + (j * (width - 210)) / Math.max(1, count - 1),
+          y: y - 64 - (isSprintPassage ? Math.sin(j * 1.45) * 22 : (j % 2) * 24),
           collected: false,
           phase: rng() * TAU,
         });
       }
 
-      if (segmentIndex > 0 && segmentIndex % Math.max(3, 5 - Math.floor(index / 3)) === 0) {
+      if (!isSprintPassage && segmentIndex > 0) {
         hazards.push({
           x: cursor + width * 0.52,
           y: y - 34,
@@ -619,11 +641,26 @@
         });
       }
 
-      if ((segmentIndex + index) % 6 === 3) {
+      if (passage === 2 && index >= 2) {
+        hazards.push({
+          x: cursor + width * .74,
+          y: y - 132,
+          baseX: cursor + width * .74,
+          baseY: y - 132,
+          r: 21,
+          range: Math.min(76, width * .16),
+          verticalRange: 22,
+          speed: .62 + rng() * .22,
+          phase: rng() * TAU,
+          kind: "flutter",
+        });
+      }
+
+      if ((isSprintPassage && segmentIndex > 0) || (segmentIndex + index) % 6 === 3) {
         springs.push({ x: cursor + width - 110, y: y - 18, w: 54, h: 18 });
       }
 
-      const gap = 105 + rng() * Math.min(75 + index * 3, 125);
+      const gap = isSprintPassage ? 86 + rng() * 42 : 130 + rng() * Math.min(72 + index * 3, 108);
       cursor += width + gap;
     }
 
@@ -632,9 +669,8 @@
       lastGround.w = worldWidth - lastGround.x;
     }
 
-    const midGround = platforms.filter((item) => item.ground).reduce((best, item) => (
-      Math.abs(item.x - worldWidth * 0.5) < Math.abs(best.x - worldWidth * 0.5) ? item : best
-    ));
+    const grounds = platforms.filter((item) => item.ground);
+    const checkpoints = createCheckpointRoute(grounds);
 
     const level = {
       ...LEVELS[index],
@@ -645,13 +681,37 @@
       hazards,
       springs,
       goal: { x: lastGround.x + lastGround.w - 150, y: lastGround.y - 116, w: 72, h: 116 },
-      checkpoint: { x: midGround.x + Math.min(midGround.w - 80, 150), y: midGround.y - 86, active: false },
+      checkpoints,
+      checkpoint: checkpoints[0],
       start: { x: 92, y: platforms[0].y - 98 },
       collected: 0,
     };
     addRegionalFeatures(level);
     addNextStageFeatures(level);
     return level;
+  }
+
+  function levelPlatformType(levelIndex, segmentIndex, ledgeIndex) {
+    if (LEVELS[levelIndex]?.mood === "rail" && (segmentIndex + ledgeIndex) % 2 === 0) return "train";
+    if (LEVELS[levelIndex]?.mood === "rooftops" || LEVELS[levelIndex]?.mood === "night") return "roof";
+    if (LEVELS[levelIndex]?.mood === "mine" || LEVELS[levelIndex]?.mood === "rocks") return "stone";
+    return (segmentIndex + ledgeIndex + levelIndex) % 3 === 0 ? "wood" : "stone";
+  }
+
+  function createCheckpointRoute(grounds, ratios = [.34, .68]) {
+    const routeEnd = grounds[grounds.length - 1].x + grounds[grounds.length - 1].w;
+    return ratios.map((ratio, index) => {
+      const targetX = routeEnd * ratio;
+      const anchor = grounds.reduce((best, ground) => (
+        Math.abs((ground.x + ground.w * .5) - targetX) < Math.abs((best.x + best.w * .5) - targetX) ? ground : best
+      ));
+      return {
+        x: anchor.x + Math.max(54, Math.min(anchor.w - 64, anchor.w * .48)),
+        y: anchor.y - 86,
+        active: false,
+        label: index === 0 ? "Erste Rast" : "Zweite Rast",
+      };
+    });
   }
 
   function addRegionalFeatures(level) {
@@ -771,6 +831,7 @@
     const platforms = [...grounds, ...ledges];
     const lastGround = grounds[grounds.length - 1];
     const middleGround = grounds[Math.floor(grounds.length / 2)];
+    const checkpoints = createCheckpointRoute(grounds, [.34, .68]);
     const sparkSpots = [
       ...ledges.slice(0, 8).map((platform) => [platform.x + platform.w * .5, platform.y - 54]),
       ...grounds.slice(1, 4).map((platform) => [platform.x + platform.w * .52, platform.y - 62]),
@@ -804,7 +865,8 @@
         { id: "bonus-life-c", x: lastGround.x + lastGround.w * .34, y: lastGround.y - 48, collected: false, phase: 4.1 },
       ],
       goal: { x: lastGround.x + lastGround.w - 112, y: lastGround.y - 116, w: 72, h: 116, returnPortal: true },
-      checkpoint: { x: middleGround.x + 45, y: middleGround.y - 86, active: false },
+      checkpoints,
+      checkpoint: checkpoints[0],
       start: { x: 72, y: grounds[0].y - 98 },
       collected: 0,
       currents: (layout.currents || []).map(([x, w, push]) => ({ x, w, push })),
@@ -1065,6 +1127,9 @@
 
     for (const hazard of level.hazards) {
       hazard.x = hazard.baseX + Math.sin(game.time * hazard.speed + hazard.phase) * hazard.range;
+      if (hazard.kind === "flutter") {
+        hazard.y = hazard.baseY + Math.sin(game.time * hazard.speed * 1.7 + hazard.phase) * hazard.verticalRange;
+      }
     }
 
     const move = (held.left || pressed.has("ArrowLeft") || pressed.has("KeyA") ? -1 : 0)
@@ -1274,12 +1339,13 @@
       window.setTimeout(() => playTone(780, .16, "sine", .035, 120), 110);
     }
 
-    if (!level.checkpoint.active && player.x > level.checkpoint.x - 10) {
-      level.checkpoint.active = true;
-      player.respawnX = level.checkpoint.x - 20;
-      player.respawnY = level.checkpoint.y - 10;
-      burst(level.checkpoint.x, level.checkpoint.y, "#ffd35f", 18, 185);
-      showToast("Rastplatz erreicht – hier geht es weiter!");
+    for (const checkpoint of level.checkpoints || [level.checkpoint]) {
+      if (checkpoint.active || player.x <= checkpoint.x - 10) continue;
+      checkpoint.active = true;
+      player.respawnX = checkpoint.x - 20;
+      player.respawnY = checkpoint.y - 10;
+      burst(checkpoint.x, checkpoint.y, "#ffd35f", 18, 185);
+      showToast(`${checkpoint.label || "Rastplatz"} erreicht – hier geht es weiter!`);
       playTone(520, 0.22, "sine", 0.04, 210);
     }
 
@@ -1288,7 +1354,10 @@
         const dx = player.x + player.w / 2 - hazard.x;
         const dy = player.y + player.h / 2 - hazard.y;
         if (Math.hypot(dx, dy) < hazard.r + 25) {
-          loseHeart(level.underwater ? "Hoppla – ein Strömungsgeist!" : "Hoppla – ein Rußwichtel!");
+          const hazardName = level.underwater
+            ? "ein Strömungsgeist"
+            : hazard.kind === "flutter" ? "ein flatternder Lichterwichtel" : "ein Rußwichtel";
+          loseHeart(`Hoppla – ${hazardName}!`);
           return;
         }
       }
@@ -1620,7 +1689,7 @@
     for (const spring of level.springs) {
       if (spring.x + spring.w >= left && spring.x <= right) drawSpring(spring, level);
     }
-    drawCheckpoint(level.checkpoint, level);
+    for (const checkpoint of level.checkpoints || [level.checkpoint]) drawCheckpoint(checkpoint, level);
     if (level.secretEntrance) drawSecretEntrance(level.secretEntrance, level);
     drawGoal(level.goal, level);
     for (const crystal of level.collectibles) {
@@ -2478,6 +2547,25 @@
       ctx.restore();
       return;
     }
+    if (hazard.kind === "flutter") {
+      const flap = Math.sin(game.time * hazard.speed * 8 + hazard.phase) * 8;
+      ctx.translate(x, y);
+      ctx.shadowColor = "rgba(255,213,92,.7)";
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = "#e7a947";
+      ctx.beginPath(); ctx.ellipse(0, 0, 16, 13, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#f3c85c";
+      ctx.beginPath(); ctx.ellipse(-17, flap * .38, 18, 7, -.28, 0, TAU); ctx.ellipse(17, -flap * .38, 18, 7, .28, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#fff9de";
+      ctx.beginPath(); ctx.arc(-5, -3, 5, 0, TAU); ctx.arc(5, -3, 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#1e3834";
+      ctx.beginPath(); ctx.arc(-4, -2, 1.8, 0, TAU); ctx.arc(6, -2, 1.8, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#9d5b29";
+      ctx.beginPath(); ctx.moveTo(-3, 5); ctx.lineTo(0, 11); ctx.lineTo(3, 5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      return;
+    }
     ctx.globalAlpha = .18;
     ctx.fillStyle = "#172927";
     ctx.beginPath(); ctx.ellipse(x, hazard.y + 25, 28, 8, 0, 0, TAU); ctx.fill();
@@ -2515,6 +2603,10 @@
       ctx.fillStyle = "#fff4b4";
       ctx.beginPath(); ctx.arc(checkpoint.x + 4, checkpoint.y, 6, 0, TAU); ctx.fill();
     }
+    ctx.fillStyle = checkpoint.active ? "#fff3bf" : "#f7edd5";
+    ctx.font = "900 9px system-ui";
+    ctx.textAlign = "left";
+    ctx.fillText(checkpoint.label || "RAST", checkpoint.x + 11, checkpoint.y + 50);
     ctx.restore();
   }
 

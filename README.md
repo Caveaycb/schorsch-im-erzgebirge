@@ -26,11 +26,13 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - zehn unterschiedliche Geheimlevel: Federwerkstatt, Lichterkeller, Kristallaufzüge, Wassergrotte, Zugdepot, Dacharchiv, Laternenlabyrinth, Granitschacht, Uhrwerk und Gipfelhöhle
 - eigene Geheimlevel-Mechaniken wie Förderbänder, Lichtbrücken, Strömung, Aufwind, rutschiger Boden und fahrende Zugwagen
 - handgebautes Einstiegslevel „Waldweg bei Seiffen“ mit Werkstattpassage, Höhenweg und Geheimnis
+- längere Hauptlevel mit einem klaren Wechsel aus schnellen Sammelstrecken, Kletter-/Sprungpassagen und Zielspurts
+- mindestens zwei aktivierbare Rastplätze pro Level; jeder Rastplatz setzt den Rücksetzpunkt vor dem nächsten Abschnitt
 - Laufen, variable Sprunghöhe, Coyote Time und Jump Buffer
 - animierte Bewegungszustände für Leerlauf, Anlauf, Absprung, Scheitelpunkt, Fall und Landung
 - separate Rennanimationen für beide Arme, weiße Handschuhe, Beine und den richtungsabhängig nachlaufenden Rucksack
 - eigener tauchender Schorsch im Bonuslevel mit freier Unterwasserbewegung, Schwimmrhythmus, Auftrieb, Strömung, Blasen und Wasserlinien
-- bewegliche Plattformen, Sprungfedern und harmlose Rußwichtel
+- bewegliche Plattformen, Sprungfedern, harmlose Rußwichtel und langsam flatternde Lichterwichtel
 - fünf Startleben, sammelbare Wanderherzen in Haupt- und Geheimleveln sowie maximal 999 Leben
 - Abstürze und Treffer durch Rußwichtel kosten ein Leben; nach dem letzten Leben startet das aktuelle Hauptlevel vollständig neu
 - Bergfunken, Checkpoints, Zielportale und Levelzeit
