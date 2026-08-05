@@ -2621,41 +2621,84 @@
       return;
     }
     if (hazard.kind === "flutter") {
-      const flap = Math.sin(game.time * hazard.speed * 8 + hazard.phase) * 8;
+      const rayWiggle = Math.sin(game.time * hazard.speed * 6 + hazard.phase) * .12;
       ctx.translate(x, y);
-      ctx.shadowColor = "rgba(255,213,92,.7)";
-      ctx.shadowBlur = 12;
-      ctx.fillStyle = "#e7a947";
-      ctx.beginPath(); ctx.ellipse(0, 0, 16, 13, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = "#f3c85c";
-      ctx.beginPath(); ctx.ellipse(-17, flap * .38, 18, 7, -.28, 0, TAU); ctx.ellipse(17, -flap * .38, 18, 7, .28, 0, TAU); ctx.fill();
+      ctx.shadowColor = "rgba(255,185,63,.82)";
+      ctx.shadowBlur = 16;
+      ctx.strokeStyle = "#e88932";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      for (let ray = 0; ray < 10; ray += 1) {
+        const angle = (ray / 10) * TAU + rayWiggle;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 21, Math.sin(angle) * 21);
+        ctx.lineTo(Math.cos(angle) * 29, Math.sin(angle) * 29);
+        ctx.stroke();
+      }
+      const sunFace = ctx.createRadialGradient(-6, -8, 2, 0, 0, 23);
+      sunFace.addColorStop(0, "#fff3a6");
+      sunFace.addColorStop(.65, "#ffd45c");
+      sunFace.addColorStop(1, "#ef9a36");
+      ctx.fillStyle = sunFace;
+      ctx.beginPath(); ctx.arc(0, 0, 21, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
       ctx.fillStyle = "#fff9de";
-      ctx.beginPath(); ctx.arc(-5, -3, 5, 0, TAU); ctx.arc(5, -3, 5, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-7, -4, 5.8, 0, TAU); ctx.arc(7, -4, 5.8, 0, TAU); ctx.fill();
       ctx.fillStyle = "#1e3834";
-      ctx.beginPath(); ctx.arc(-4, -2, 1.8, 0, TAU); ctx.arc(6, -2, 1.8, 0, TAU); ctx.fill();
-      ctx.fillStyle = "#9d5b29";
-      ctx.beginPath(); ctx.moveTo(-3, 5); ctx.lineTo(0, 11); ctx.lineTo(3, 5); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(-6, -3, 2, 0, TAU); ctx.arc(8, -3, 2, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#f09272";
+      ctx.beginPath(); ctx.ellipse(-13, 6, 4, 2.5, 0, 0, TAU); ctx.ellipse(13, 6, 4, 2.5, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#a95a35";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, 6, 6, .18, Math.PI - .18); ctx.stroke();
       ctx.restore();
       return;
     }
-    ctx.globalAlpha = .18;
+    const cloudStyles = [
+      { dark: "#6f7784", light: "#cbd0d8", highlight: "#eff1f4", outline: "#505966", blush: "#d5899c" },
+      { dark: "#b86f8d", light: "#eca0b6", highlight: "#ffe3ea", outline: "#8f4d68", blush: "#ce6f8b" },
+      { dark: "#8e8797", light: "#c4bccd", highlight: "#eee9f1", outline: "#696172", blush: "#cf829a" },
+    ];
+    const cloud = cloudStyles[Math.abs(Math.floor(hazard.phase * 7)) % cloudStyles.length];
+    ctx.globalAlpha = .26;
     ctx.fillStyle = "#172927";
-    ctx.beginPath(); ctx.ellipse(x, hazard.y + 25, 28, 8, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, hazard.y + 27, 30, 8, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#314441";
+    ctx.shadowColor = cloud.dark;
+    ctx.shadowBlur = 7;
+    ctx.fillStyle = cloud.dark;
     for (let i = 0; i < 7; i += 1) {
       const angle = (i / 7) * TAU;
       ctx.beginPath();
       ctx.arc(x + Math.cos(angle) * 15, y + Math.sin(angle) * 12, 13 + (i % 2) * 3, 0, TAU);
       ctx.fill();
     }
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = cloud.light;
+    ctx.beginPath();
+    ctx.arc(x - 15, y + 2, 13, 0, TAU);
+    ctx.arc(x - 4, y - 9, 16, 0, TAU);
+    ctx.arc(x + 12, y - 7, 15, 0, TAU);
+    ctx.arc(x + 21, y + 5, 12, 0, TAU);
+    ctx.ellipse(x + 2, y + 9, 26, 13, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = cloud.outline;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = cloud.highlight;
+    ctx.globalAlpha = .82;
+    ctx.beginPath(); ctx.ellipse(x - 8, y - 12, 11, 6, -.25, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.fillStyle = "#f8f4e8";
     ctx.beginPath(); ctx.arc(x - 8, y - 2, 6, 0, TAU); ctx.arc(x + 8, y - 2, 6, 0, TAU); ctx.fill();
     ctx.fillStyle = "#172927";
     ctx.beginPath(); ctx.arc(x - 7, y - 1, 2.5, 0, TAU); ctx.arc(x + 7, y - 1, 2.5, 0, TAU); ctx.fill();
-    ctx.strokeStyle = level.accent;
-    ctx.lineWidth = 2;
+    ctx.fillStyle = cloud.blush;
+    ctx.globalAlpha = .72;
+    ctx.beginPath(); ctx.ellipse(x - 17, y + 7, 4, 2.5, 0, 0, TAU); ctx.ellipse(x + 17, y + 7, 4, 2.5, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = cloud.outline;
+    ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(x, y + 8, 7, .18, Math.PI - .18); ctx.stroke();
     ctx.restore();
   }
