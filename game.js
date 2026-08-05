@@ -4353,6 +4353,14 @@
   }
 
   function bindControls() {
+    // iOS can otherwise treat a two-finger input on the controls as a page-pan
+    // gesture.  Only block it while a level is active so overlay panels keep
+    // their regular, scrollable touch behavior.
+    const preventGamePan = (event) => {
+      if (game.mode === "playing" && event.cancelable) event.preventDefault();
+    };
+    stage.addEventListener("touchmove", preventGamePan, { passive: false });
+
     window.addEventListener("keydown", (event) => {
       const gameKey = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS", "Space"];
       if (gameKey.includes(event.code)) event.preventDefault();
