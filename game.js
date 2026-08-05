@@ -30,7 +30,11 @@
     shopWallet: document.querySelector("#shopWallet"),
     previewLoadout: document.querySelector("#previewLoadout"),
     skillTree: document.querySelector("#skillTree"),
+    skillSlots: document.querySelector("#skillSlots"),
     skillsWallet: document.querySelector("#skillsWallet"),
+    inventory: document.querySelector("#inventoryPanel"),
+    inventoryGrid: document.querySelector("#inventoryGrid"),
+    inventoryCount: document.querySelector("#inventoryCount"),
     sound: document.querySelector("#soundButton"),
   };
 
@@ -39,6 +43,7 @@
   const TAU = Math.PI * 2;
   const START_LIVES = 5;
   const MAX_LIVES = 999;
+  const MAX_ACTIVE_TALENTS = 4;
 
   const LEVELS = [
     { name: "Waldweg bei Seiffen", short: "Seiffen", subtitle: "Zwischen Fichten und Werkstätten", accent: "#3f8a65", sky: ["#8ed3cf", "#d9efe1"], ground: "#537b4a", mood: "forest", backdrop: "level-01" },
@@ -87,6 +92,8 @@
     { id: "magnet", name: "Kristallblick", price: 10, mark: "◇", description: "Bergfunken in der Nähe finden von allein zu Schorsch." },
     { id: "extraHeart", name: "Wanderherz", price: 12, mark: "♥", description: "Das erste gefundene Wanderherz jedes Levels zählt doppelt." },
     { id: "secretPaths", name: "Spurensucher", price: 8, mark: "✦", description: "Geheime Wege werden mit kleinen Sternen markiert." },
+    { id: "trailRunner", name: "Bergsprinter", price: 13, mark: "➜", description: "Schorsch läuft etwas schneller und beschleunigt flotter." },
+    { id: "safetyNet", name: "Wanderseil", price: 16, mark: "⌁", description: "Fängt einmal pro Level einen Sturz ab – ohne ein Leben zu kosten." },
   ];
 
   const LEVEL_MUSIC = [
@@ -261,6 +268,12 @@
   let audioContext = null;
 
   const storage = loadProgress();
+  const storedOwnedTalents = storage.talentLoadoutSaved && Array.isArray(storage.ownedTalents)
+    ? storage.ownedTalents
+    : storage.talents;
+  const storedEquippedTalents = storage.talentLoadoutSaved && Array.isArray(storage.equippedTalents)
+    ? storage.equippedTalents
+    : storedOwnedTalents.slice(0, MAX_ACTIVE_TALENTS);
   const game = {
     mode: "menu",
     levelIndex: Math.min(storage.currentLevel, LEVELS.length - 1),
@@ -272,7 +285,8 @@
     claimedSparks: new Set(Array.isArray(storage.claimedSparks) ? storage.claimedSparks : []),
     ownedOutfits: new Set(Array.isArray(storage.ownedOutfits) ? storage.ownedOutfits : []),
     equippedOutfits: new Set(Array.isArray(storage.equippedOutfits) ? storage.equippedOutfits : []),
-    talents: new Set(Array.isArray(storage.talents) ? storage.talents : []),
+    ownedTalents: new Set(storedOwnedTalents),
+    talents: new Set(storedEquippedTalents.slice(0, MAX_ACTIVE_TALENTS)),
     foundItems: new Set(Array.isArray(storage.foundItems) ? storage.foundItems : []),
     level: null,
     player: null,
@@ -284,6 +298,7 @@
     cameraX: 0,
     hearts: START_LIVES,
     lifeTalentUsed: false,
+    safetyNetUsed: false,
     sparks: 0,
     runStartedAt: 0,
     pausedAt: 0,
@@ -305,6 +320,9 @@
       ownedOutfits: [],
       equippedOutfits: [],
       talents: [],
+      ownedTalents: [],
+      equippedTalents: [],
+      talentLoadoutSaved: false,
       foundItems: [],
     };
     try {
@@ -326,6 +344,9 @@
       ownedOutfits: [...game.ownedOutfits],
       equippedOutfits: [...game.equippedOutfits],
       talents: [...game.talents],
+      ownedTalents: [...game.ownedTalents],
+      equippedTalents: [...game.talents],
+      talentLoadoutSaved: true,
       foundItems: [...game.foundItems],
     }));
   }
@@ -793,6 +814,12 @@
     const lateLedge = ledges
       .filter((platform) => platform.x > level.worldWidth * .58)
       .sort((a, b) => a.x - b.x)[0] || ledges[ledges.length - 1] || grounds[grounds.length - 1];
+    const highRouteCandidates = ledges
+      .filter((platform) => platform.y < 455)
+      .sort((a, b) => a.x - b.x);
+    const highRouteLedges = highRouteCandidates
+      .filter((platform, index) => index % Math.max(1, Math.ceil(highRouteCandidates.length / 3)) === 0)
+      .slice(0, 3);
     const itemIdA = `${level.index}:main-a`;
     const itemIdB = `${level.index}:main-b`;
     level.items = [
@@ -804,11 +831,21 @@
         id: "main-b", x: lateLedge.x + lateLedge.w * .5, y: lateLedge.y - 39,
         name: itemMeta.name, type: itemMeta.type, color: itemMeta.color, collected: game.foundItems.has(itemIdB),
       },
+      ...highRouteLedges.map((ledge, index) => ({
+        id: `high-route-${index}`,
+        x: ledge.x + ledge.w * .5,
+        y: ledge.y - 42,
+        name: index === 0 ? `Höhenfund: ${itemMeta.name}` : index === 1 ? "Bergkamm-Abzeichen" : "Aussichtsstern",
+        type: index === 1 ? "badge" : "star",
+        color: index === 1 ? "#d7a84a" : "#f3c95d",
+        rare: true,
+        collected: game.foundItems.has(`${level.index}:high-route-${index}`),
+      })),
     ];
 
     const lifeAnchors = [
       grounds[Math.min(2, grounds.length - 1)] || firstGround,
-      ledges[Math.floor(ledges.length * .42)] || safeAnchor,
+      highRouteLedges[1] || highRouteLedges[0] || ledges[Math.floor(ledges.length * .42)] || safeAnchor,
       grounds[Math.max(0, grounds.length - 2)] || lateLedge,
     ];
     level.lifePickups = lifeAnchors.map((anchor, index) => ({
@@ -941,6 +978,7 @@
     game.mode = "playing";
     if (resetHearts) game.hearts = START_LIVES;
     game.lifeTalentUsed = false;
+    game.safetyNetUsed = false;
     game.musicBeatAt = 0;
     game.musicStep = 0;
     closeAllPanels();
@@ -1003,11 +1041,11 @@
   }
 
   function closeAllPanels() {
-    [ui.start, ui.map, ui.pause, ui.skills, ui.outfits, ui.finish].forEach((panel) => { panel.hidden = true; });
+    [ui.start, ui.map, ui.pause, ui.skills, ui.outfits, ui.inventory, ui.finish].forEach((panel) => { panel.hidden = true; });
   }
 
   function openPanel(panel) {
-    [ui.map, ui.pause, ui.skills, ui.outfits, ui.finish].forEach((item) => {
+    [ui.map, ui.pause, ui.skills, ui.outfits, ui.inventory, ui.finish].forEach((item) => {
       if (item !== panel) item.hidden = true;
     });
     panel.hidden = false;
@@ -1138,8 +1176,9 @@
     const swimVertical = (isJumpHeld() ? -1 : 0)
       + (held.down || pressed.has("ArrowDown") || pressed.has("KeyS") ? 1 : 0);
     const icy = level.specialMechanic === "ice-wind";
-    const acceleration = underwater ? 980 : player.onGround ? (icy ? 1780 : 2550) : 1550;
-    const maxSpeed = underwater ? 285 : 385;
+    const sprintTalent = game.talents.has("trailRunner");
+    const acceleration = (underwater ? 980 : player.onGround ? (icy ? 1780 : 2550) : 1550) * (sprintTalent ? 1.12 : 1);
+    const maxSpeed = (underwater ? 285 : 385) * (sprintTalent ? 1.14 : 1);
     if (move) {
       player.vx += move * acceleration * dt;
       player.direction = move;
@@ -1369,6 +1408,19 @@
       return;
     }
     if (player.y > H + 180) {
+      if (game.talents.has("safetyNet") && !game.safetyNetUsed) {
+        game.safetyNetUsed = true;
+        player.x = player.respawnX;
+        player.y = player.respawnY;
+        player.vx = 0;
+        player.vy = 0;
+        player.invincible = 1.5;
+        game.cameraX = Math.max(0, player.x - 220);
+        burst(player.x + player.w / 2, player.y + player.h / 2, "#e9d37a", 18, 190);
+        playTone(620, .14, "sine", .04, 190);
+        showToast("Das Wanderseil fängt Schorsch auf – einmal pro Level!");
+        return;
+      }
       loseHeart("Schorsch ist vom Weg gerutscht.");
       return;
     }
@@ -2457,6 +2509,11 @@
     const y = item.y + bob;
     ctx.save();
     ctx.translate(x, y);
+    if (item.rare) {
+      ctx.strokeStyle = "rgba(255,247,190,.85)";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 25 + Math.sin(game.time * 3 + x) * 2, 0, TAU); ctx.stroke();
+    }
     ctx.shadowColor = item.color;
     ctx.shadowBlur = 18;
     ctx.fillStyle = "rgba(255,252,225,.88)";
@@ -3961,35 +4018,92 @@
   function renderSkillTree() {
     ui.skillTree.replaceChildren();
     for (const talent of TALENTS) {
-      const owned = game.talents.has(talent.id);
+      const learned = game.ownedTalents.has(talent.id);
+      const active = game.talents.has(talent.id);
       const card = document.createElement("article");
-      card.className = owned ? "is-owned" : "";
+      card.className = active ? "is-owned" : learned ? "is-learned" : "";
       card.innerHTML = `
         <span aria-hidden="true">${talent.mark}</span>
         <b>${talent.name}</b>
         <small>${talent.description}</small>
-        <button type="button"${owned ? " class=\"is-owned\"" : ""}>${owned ? "Erlernt ✓" : `Lernen · ${talent.price} ◆`}</button>`;
+        <button type="button"${active ? " class=\"is-owned\"" : ""}>${active ? "Aktiv · ablegen" : learned ? "Aktivieren" : `Lernen · ${talent.price} ◆`}</button>`;
       card.querySelector("button").addEventListener("click", () => chooseTalent(talent));
       ui.skillTree.append(card);
     }
+    ui.skillSlots.textContent = `Aktiv: ${game.talents.size} / ${MAX_ACTIVE_TALENTS}`;
     updateHud();
   }
 
   function chooseTalent(talent) {
-    if (game.talents.has(talent.id)) {
-      showToast(`${talent.name} ist schon Teil von Schorschs Rucksackwissen.`);
+    const learned = game.ownedTalents.has(talent.id);
+    const active = game.talents.has(talent.id);
+    if (active) {
+      game.talents.delete(talent.id);
+      saveProgress();
+      showToast(`${talent.name} ist im Rucksack und kann später wieder aktiviert werden.`);
+      renderSkillTree();
       return;
     }
-    if (game.wallet < talent.price) {
-      showToast(`Noch ${talent.price - game.wallet} Bergfunken bis zu ${talent.name}.`);
+    if (!learned) {
+      if (game.wallet < talent.price) {
+        showToast(`Noch ${talent.price - game.wallet} Bergfunken bis zu ${talent.name}.`);
+        return;
+      }
+      game.wallet -= talent.price;
+      game.ownedTalents.add(talent.id);
+    }
+    if (game.talents.size >= MAX_ACTIVE_TALENTS) {
+      saveProgress();
+      showToast(`Vier Talente sind aktiv. Lege erst eines ab, um ${talent.name} zu aktivieren.`);
+      renderSkillTree();
       return;
     }
-    game.wallet -= talent.price;
     game.talents.add(talent.id);
     saveProgress();
     playTone(580, .1, "sine", .035, 220);
-    showToast(`${talent.name} gelernt!`);
+    showToast(learned ? `${talent.name} ist wieder aktiv.` : `${talent.name} gelernt und aktiviert!`);
     renderSkillTree();
+  }
+
+  function inventoryEntry(entry) {
+    const [levelPart, itemId = ""] = entry.split(":");
+    const levelIndex = Number(levelPart);
+    const level = LEVELS[levelIndex] || LEVELS[0];
+    const regional = REGIONAL_ITEMS[level.mood] || REGIONAL_ITEMS.forest;
+    if (itemId.startsWith("high-route-")) {
+      const index = Number(itemId.slice(-1));
+      const names = [`Höhenfund: ${regional.name}`, "Bergkamm-Abzeichen", "Aussichtsstern"];
+      return { name: names[index] || "Höhenfund", type: index === 1 ? "badge" : "star", color: index === 1 ? "#d7a84a" : "#f3c95d", where: `${level.short} · Höhenroute` };
+    }
+    if (itemId === "main-a" || itemId === "main-b" || itemId === "bonus-a") return { ...regional, where: level.short };
+    if (itemId === "bonus-b") return { name: "Glückstaler", type: "coin", color: "#e0b54d", where: `${level.short} · Geheimweg` };
+    if (itemId === "bonus-c") return { name: "Altes Grubenlicht", type: "lantern", color: "#f2a83d", where: `${level.short} · Geheimweg` };
+    if (itemId === "tauch-a") return { ...REGIONAL_ITEMS.underwater, where: level.short };
+    if (itemId === "tauch-b") return { name: "Alte Lorenplakette", type: "badge", color: "#d0a55d", where: level.short };
+    if (itemId === "tauch-c") return { name: "Türkiser Stollenkristall", type: "star", color: "#58e6df", where: level.short };
+    return { ...regional, where: level.short };
+  }
+
+  function inventoryMark(type) {
+    return ({ star: "✦", badge: "◈", lantern: "☼", coin: "●", key: "⚿", ticket: "▭", heart: "♥", flag: "⚑", candle: "♟", figure: "♙" })[type] || "✦";
+  }
+
+  function renderInventory() {
+    ui.inventoryGrid.replaceChildren();
+    const entries = [...game.foundItems].sort((a, b) => a.localeCompare(b, "de"));
+    ui.inventoryCount.textContent = entries.length;
+    if (!entries.length) {
+      ui.inventoryGrid.innerHTML = `<p class="inventory-empty">Noch ist der Rucksack leer. Folge hohen Pfaden und geheimen Stolleneingängen für besondere Fundstücke.</p>`;
+      return;
+    }
+    for (const entry of entries) {
+      const item = inventoryEntry(entry);
+      const card = document.createElement("article");
+      card.className = "inventory-card";
+      card.style.setProperty("--item-color", item.color);
+      card.innerHTML = `<span class="inventory-icon" aria-hidden="true">${inventoryMark(item.type)}</span><b>${item.name}</b><small>${item.where}</small>`;
+      ui.inventoryGrid.append(card);
+    }
   }
 
   function renderLevelGrid() {
@@ -4274,6 +4388,14 @@
       renderLevelGrid();
       openOverlay(ui.map);
     });
+    document.querySelector("#skillsQuickButton").addEventListener("click", () => {
+      renderSkillTree();
+      openOverlay(ui.skills);
+    });
+    document.querySelector("#inventoryButton").addEventListener("click", () => {
+      renderInventory();
+      openOverlay(ui.inventory);
+    });
     document.querySelector("#outfitButton").addEventListener("click", () => {
       renderOutfitShop();
       openOverlay(ui.outfits);
@@ -4316,7 +4438,10 @@
       equippedCategories.add(outfit.category);
       return true;
     }));
-    game.talents = new Set([...game.talents].filter((id) => TALENTS.some((talent) => talent.id === id)));
+    game.ownedTalents = new Set([...game.ownedTalents].filter((id) => TALENTS.some((talent) => talent.id === id)));
+    game.talents = new Set([...game.talents]
+      .filter((id) => game.ownedTalents.has(id))
+      .slice(0, MAX_ACTIVE_TALENTS));
     bindControls();
     bindUi();
     resizeCanvas();

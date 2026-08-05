@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=16" />
+    <link rel="stylesheet" href="styles.css?v=17" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -29,14 +29,14 @@
           <span class="hud-chip level-name" id="levelName">Waldweg bei Seiffen</span>
         </div>
 
-        <div class="header-actions">
-          <button class="icon-button shop-button" id="outfitButton" type="button" aria-label="Outfit-Laden öffnen">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5a3 3 0 1 1 5.4 1.8L21 13v2H3v-2l8-5.6V6.5"/><path d="M5 15h14v3H5z"/></svg>
-          </button>
-          <button class="icon-button" id="mapButton" type="button" aria-label="Levelkarte öffnen">⌘</button>
+        <nav class="header-actions" aria-label="Reise-Menü">
+          <button class="quick-menu-button" id="mapButton" type="button" aria-label="Freigeschaltete Level wählen"><span aria-hidden="true">⌘</span><small>Level</small></button>
+          <button class="quick-menu-button" id="skillsQuickButton" type="button" aria-label="Talentpfad öffnen"><span aria-hidden="true">✦</span><small>Talente</small></button>
+          <button class="quick-menu-button" id="inventoryButton" type="button" aria-label="Rucksack mit Reiseandenken öffnen"><span aria-hidden="true">▣</span><small>Rucksack</small></button>
+          <button class="quick-menu-button shop-button" id="outfitButton" type="button" aria-label="Outfit-Laden öffnen"><span aria-hidden="true">♙</span><small>Outfits</small></button>
           <button class="icon-button" id="soundButton" type="button" aria-label="Ton an oder aus">♪</button>
           <button class="icon-button" id="pauseButton" type="button" aria-label="Spiel pausieren">Ⅱ</button>
-        </div>
+        </nav>
       </header>
 
       <section class="stage" id="stage">
@@ -118,6 +118,19 @@
           </div>
         </section>
 
+        <section class="panel inventory-panel" id="inventoryPanel" hidden aria-labelledby="inventoryTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Schorschs Rucksack</p>
+              <h2 id="inventoryTitle">Reiseandenken</h2>
+            </div>
+            <button class="close-button" data-close-panel type="button" aria-label="Rucksack schließen">×</button>
+          </div>
+          <p class="inventory-intro">Besondere Funde bleiben dauerhaft im Rucksack. Auf hohen Routen warten Aussichtsterne, Bergkamm-Abzeichen und weitere seltene Andenken.</p>
+          <div class="inventory-total"><span aria-hidden="true">✦</span> <b id="inventoryCount">0</b> Fundstücke entdeckt</div>
+          <div class="inventory-grid" id="inventoryGrid"></div>
+        </section>
+
         <section class="panel pause-panel" id="pausePanel" hidden aria-labelledby="pauseTitle">
           <p class="eyebrow">Kurze Rast</p>
           <h2 id="pauseTitle">Spiel pausiert</h2>
@@ -139,7 +152,8 @@
               <button class="close-button" data-close-panel type="button" aria-label="Talentpfad schließen">×</button>
             </div>
           </div>
-          <p class="skills-intro">Alle Talente sind freiwillige Hilfen: Kein Level verlangt sie zum Durchspielen.</p>
+          <p class="skills-intro">Alle Talente sind freiwillige Hilfen: Kein Level verlangt sie zum Durchspielen. Du kannst maximal vier gleichzeitig aktiv haben.</p>
+          <p class="skill-slots" id="skillSlots">Aktiv: 0 / 4</p>
           <div class="skill-tree" id="skillTree"></div>
           <button class="secondary-button" data-close-panel type="button">Zurück zum Spiel</button>
         </section>
@@ -172,6 +186,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=17"></script>
+    <script src="game.js?v=18"></script>
   </body>
 </html>

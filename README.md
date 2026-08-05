@@ -45,6 +45,10 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - gekaufte Ausrüstung bleibt gespeichert; Ladenansicht und Spielfigur verwenden exakt dieselbe Variante
 - körpernah neu gezeichnete Jacken mit eigenen Ärmeln, Kragen, Bündchen, Säumen und typabhängigen Details
 - individuell angepasste Mützen, Schuhe, Wanderstock, Laterne, Schal und Umhang mit festen Kopf-, Fuß-, Hand- und Rückenankern
+- dauerhaftes Reise-Menü für freigeschaltete Level, Talentpfad, Rucksackinventar und Outfit-Laden – auch während eines laufenden Levels
+- Rucksackinventar für regionale Fundstücke, Geheimweg-Schätze und besondere Höhenfunde
+- hohe Plattformrouten belohnen mit seltenen Aussichtssternen, Bergkamm-Abzeichen und zusätzlichen Wanderherzen
+- sieben lernbare Talente, davon maximal vier gleichzeitig aktiv; neue Hilfen sind Bergsprinter und das einmalige Wanderseil
 - regionale Spielwelten: Fachwerk, Stollen, Zschopau, Bimmelbahn, Schieferdächer, Schwibbogen, Greifensteine und Gipfel
 - elf eigenständige, detailreiche 3D-Comic-Kulissen – einschließlich eines gefluteten Erzgebirgsstollens mit Lorenbahn, Holzbalken und Kristalllicht
 - unterschwellige regionale Energiedetails wie Mühlenkraft, dezente Strominfrastruktur, E-Mobilität und dachintegrierte Photovoltaik
