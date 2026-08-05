@@ -41,7 +41,7 @@ button { color: inherit; }
   min-width: 0;
   min-height: 64px;
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  grid-template-columns: auto auto minmax(250px, 1fr) auto auto;
   align-items: center;
   gap: 16px;
   padding: 0 14px 0 8px;
@@ -90,7 +90,11 @@ button { color: inherit; }
 .hud-chip.item-chip i { color: #c98520; }
 .hud-chip.level-name { min-width: 190px; background: var(--ink); color: white; font-weight: 700; }
 
-.header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.travel-menu { display: contents; }
+.header-actions { display: flex; align-items: center; gap: 7px; }
+.header-actions-left { justify-content: flex-start; }
+.header-actions-right { justify-content: flex-end; }
+.system-actions { display: flex; align-items: center; gap: 7px; }
 .quick-menu-button {
   min-width: 58px;
   height: 42px;
@@ -365,17 +369,25 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
 @media (hover: none), (pointer: coarse) { .touch-controls { display: flex; } }
 
 @media (max-width: 900px) {
-  .game-shell { padding: 6px; grid-template-rows: 56px minmax(0, 1fr); gap: 6px; }
-  .topbar { min-height: 56px; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; padding-right: 6px; border-radius: 17px; }
+  .game-shell { padding: 6px; grid-template-rows: 98px minmax(0, 1fr); gap: 6px; }
+  .topbar { min-height: 98px; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: 48px 40px; gap: 3px 6px; padding: 3px 6px; border-radius: 17px; }
+  .brand { grid-column: 1 / 4; grid-row: 1; min-width: 0; }
   .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
   .brand strong { font-size: 15px; }
   .brand small { display: none; }
-  .hud { justify-content: center; }
+  .hud { grid-column: 4 / 10; grid-row: 1; justify-content: center; gap: 3px; min-width: 0; }
+  .hud-chip { min-height: 32px; padding: 0 7px; gap: 4px; font-size: 12px; }
   .hud-chip.level-name { display: none; }
-  .header-actions { gap: 4px; }
-  .quick-menu-button { min-width: 36px; width: 36px; height: 36px; padding: 2px; border-radius: 12px; }
-  .quick-menu-button small { display: none; }
-  #soundButton { display: none; }
+  .travel-menu { display: contents; }
+  .header-actions { display: contents; }
+  #mapButton { grid-column: 1 / 4; grid-row: 2; }
+  #skillsQuickButton { grid-column: 4 / 7; grid-row: 2; }
+  #inventoryButton { grid-column: 7 / 10; grid-row: 2; }
+  #outfitButton { grid-column: 10 / 13; grid-row: 2; }
+  .quick-menu-button { min-width: 0; width: 100%; height: 38px; padding: 2px 3px; border-radius: 11px; }
+  .quick-menu-button > span { font-size: 15px; }
+  .quick-menu-button small { font-size: 8px; }
+  .system-actions { grid-column: 10 / 13; grid-row: 1; gap: 4px; justify-content: flex-end; }
   .icon-button { width: 36px; height: 36px; }
   .stage { border-radius: 20px; }
   .touch-controls { display: flex; }
@@ -403,6 +415,11 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
   .shop-preview .preview-halo { width: 150px; height: 150px; }
   .outfit-grid { grid-template-columns: 1fr; }
   .outfit-category-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .brand strong { display: none; }
+  .brand { justify-content: center; }
 }
 
 @media (max-height: 650px) and (min-width: 700px) {
