@@ -36,6 +36,7 @@
     inventoryGrid: document.querySelector("#inventoryGrid"),
     inventoryCount: document.querySelector("#inventoryCount"),
     sound: document.querySelector("#soundButton"),
+    startButton: document.querySelector("#startButton"),
   };
 
   const W = 1280;
@@ -307,6 +308,7 @@
     shake: 0,
     musicBeatAt: 0,
     musicStep: 0,
+    startReturnMode: null,
   };
   function loadProgress() {
     const defaults = {
@@ -1063,6 +1065,20 @@
     if (game.pausedAt) game.runStartedAt += performance.now() - game.pausedAt;
     game.mode = "playing";
     closeAllPanels();
+  }
+
+  function openStartScreen() {
+    const canResume = game.level && (game.mode === "playing" || game.mode === "paused");
+    game.startReturnMode = canResume ? "playing" : null;
+    if (game.mode === "playing") {
+      game.mode = "paused";
+      game.pausedAt = performance.now();
+    }
+    closeAllPanels();
+    ui.start.hidden = false;
+    ui.startButton.innerHTML = canResume
+      ? "Weiterspielen <span aria-hidden=\"true\">→</span>"
+      : "Abenteuer starten <span aria-hidden=\"true\">→</span>";
   }
 
   function openOverlay(panel) {
@@ -4377,9 +4393,15 @@
     document.querySelector("#startButton").addEventListener("click", () => {
       game.playerName = ui.playerName.value.trim() || "Schorsch";
       saveProgress();
+      if (game.startReturnMode === "playing") {
+        game.startReturnMode = null;
+        resumeGame();
+        return;
+      }
       ensureAudio();
       startLevel(game.levelIndex);
     });
+    document.querySelector("#homeButton").addEventListener("click", openStartScreen);
     document.querySelector("#menuSkillsButton").addEventListener("click", () => {
       renderSkillTree();
       openOverlay(ui.skills);

@@ -9,18 +9,18 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=19" />
+    <link rel="stylesheet" href="styles.css?v=20" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
       <header class="topbar">
-        <div class="brand">
+        <button class="brand" id="homeButton" type="button" aria-label="Startseite und Steuerung öffnen">
           <span class="brand-mark" aria-hidden="true">S</span>
           <span>
             <strong>Schorsch</strong>
             <small>im Erzgebirge</small>
           </span>
-        </div>
+        </button>
 
         <div class="travel-menu">
           <nav class="header-actions header-actions-left" aria-label="Reise und Talente">
@@ -63,8 +63,10 @@
               erreiche den Fichtelberg und schalte danach den gefluteten Bonusstollen frei.
             </p>
             <div class="controls-hint">
-              <span><kbd>A</kbd><kbd>D</kbd> Laufen</span>
-              <span><kbd>W</kbd> / <kbd>Leertaste</kbd> Springen</span>
+              <span><kbd>A</kbd><kbd>D</kbd> oder <kbd>←</kbd><kbd>→</kbd> Laufen</span>
+              <span><kbd>W</kbd><kbd>↑</kbd><kbd>Leertaste</kbd> Springen</span>
+              <span><kbd>S</kbd><kbd>↓</kbd> Abtauchen / Geheimwege</span>
+              <span><kbd>P</kbd><kbd>Esc</kbd> Pause</span>
             </div>
             <button class="menu-skills-button" id="menuSkillsButton" type="button">
               <span aria-hidden="true">✦</span> Talentpfad &amp; Fähigkeiten
@@ -184,17 +186,13 @@
         <div class="toast" id="toast" role="status"></div>
 
         <div class="touch-controls" aria-label="Touch-Steuerung">
-          <div class="touch-move">
-            <button data-control="left" type="button" aria-label="Nach links">←</button>
-            <button data-control="right" type="button" aria-label="Nach rechts">→</button>
-          </div>
-          <div class="touch-vertical">
-            <button class="touch-dive" data-control="down" type="button" aria-label="Abtauchen">↓</button>
-            <button class="touch-jump" data-control="jump" type="button" aria-label="Springen oder auftauchen">↑</button>
-          </div>
+          <button class="touch-left" data-control="left" type="button" aria-label="Nach links">←</button>
+          <button class="touch-jump" data-control="jump" type="button" aria-label="Springen oder auftauchen">↑</button>
+          <button class="touch-right" data-control="right" type="button" aria-label="Nach rechts">→</button>
+          <button class="touch-dive" data-control="down" type="button" aria-label="Abtauchen">↓</button>
         </div>
       </section>
     </main>
-    <script src="game.js?v=19"></script>
+    <script src="game.js?v=20"></script>
   </body>
 </html>
