@@ -4404,6 +4404,7 @@
       if (game.mode === "playing") pauseGame(); else if (game.mode === "paused") resumeGame();
     });
     document.querySelector("#resumeButton").addEventListener("click", resumeGame);
+    document.querySelector("#pauseCloseButton").addEventListener("click", resumeGame);
     document.querySelector("#restartButton").addEventListener("click", () => startLevel(game.levelIndex));
     document.querySelector("#skillsButton").addEventListener("click", () => {
       renderSkillTree();
@@ -4411,6 +4412,10 @@
     });
     document.querySelector("#nextLevelButton").addEventListener("click", nextLevel);
     document.querySelector("#finishMapButton").addEventListener("click", () => {
+      renderLevelGrid();
+      openOverlay(ui.map);
+    });
+    document.querySelector("#finishCloseButton").addEventListener("click", () => {
       renderLevelGrid();
       openOverlay(ui.map);
     });

@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=19" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -139,6 +139,7 @@
         </section>
 
         <section class="panel pause-panel" id="pausePanel" hidden aria-labelledby="pauseTitle">
+          <button class="close-button panel-corner-close" id="pauseCloseButton" type="button" aria-label="Pause schließen und weiterspielen">×</button>
           <p class="eyebrow">Kurze Rast</p>
           <h2 id="pauseTitle">Spiel pausiert</h2>
           <div class="pause-actions">
@@ -166,6 +167,7 @@
         </section>
 
         <section class="panel finish-panel" id="finishPanel" hidden aria-labelledby="finishTitle">
+          <button class="close-button panel-corner-close" id="finishCloseButton" type="button" aria-label="Abschluss schließen und Levelkarte öffnen">×</button>
           <div class="finish-stars" aria-hidden="true">✦ ◆ ✦</div>
           <p class="eyebrow">Ziel erreicht</p>
           <h2 id="finishTitle">Stark gemacht!</h2>

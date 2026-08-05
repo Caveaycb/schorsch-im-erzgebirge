@@ -303,6 +303,7 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
 .outfit-card button:disabled { cursor: not-allowed; opacity: .48; }
 
 .pause-panel, .finish-panel { width: min(430px, calc(100% - 34px)); inset: 50% auto auto 50%; padding: 34px; border-radius: 28px; transform: translate(-50%, -50%); text-align: center; }
+.panel-corner-close { position: absolute; top: 14px; right: 14px; }
 .pause-actions { display: grid; gap: 10px; margin-top: 26px; }
 .skills-panel { width: min(720px, calc(100% - 34px)); max-height: calc(100% - 34px); inset: 50% auto auto 50%; padding: 32px; border-radius: 28px; overflow: auto; transform: translate(-50%, -50%); }
 .skills-intro { color: var(--ink-soft); }
@@ -409,6 +410,9 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
   .inventory-panel { width: calc(100% - 24px); padding: 24px 20px; }
   .inventory-grid { grid-template-columns: repeat(2, 1fr); }
   .outfit-panel { inset: 3%; padding: 20px; }
+  .map-panel .panel-heading, .outfit-panel .panel-heading, .skills-panel .panel-heading, .inventory-panel .panel-heading { position: sticky; top: -20px; z-index: 2; padding: 10px 0 12px; background: rgba(255,253,246,.97); box-shadow: 0 8px 12px rgba(34,45,37,.08); }
+  .close-button { width: 36px; height: 36px; }
+  .panel-corner-close { top: 10px; right: 10px; }
   .outfit-layout { grid-template-columns: 1fr; }
   .shop-preview { position: relative; height: auto; min-height: 210px; }
   .shop-preview img { height: 165px; }
