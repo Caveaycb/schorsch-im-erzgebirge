@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#183b35" />
+    <meta
+      name="description"
+      content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
+    />
+    <title>Schorsch im Erzgebirge</title>
+    <link rel="stylesheet" href="styles.css?v=16" />
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Schorsch im Erzgebirge">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">S</span>
+          <span>
+            <strong>Schorsch</strong>
+            <small>im Erzgebirge</small>
+          </span>
+        </div>
+
+        <div class="hud" aria-live="polite">
+          <span class="hud-chip"><i aria-hidden="true">◆</i><b id="sparkCount">0</b></span>
+          <span class="hud-chip item-chip" aria-label="Entdeckte Reiseandenken"><i aria-hidden="true">✦</i><b id="itemCount">0</b></span>
+          <span class="hud-chip" aria-label="5 von maximal 999 Leben"><i aria-hidden="true">♥</i><b id="heartCount">5</b></span>
+          <span class="hud-chip level-name" id="levelName">Waldweg bei Seiffen</span>
+        </div>
+
+        <div class="header-actions">
+          <button class="icon-button shop-button" id="outfitButton" type="button" aria-label="Outfit-Laden öffnen">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5a3 3 0 1 1 5.4 1.8L21 13v2H3v-2l8-5.6V6.5"/><path d="M5 15h14v3H5z"/></svg>
+          </button>
+          <button class="icon-button" id="mapButton" type="button" aria-label="Levelkarte öffnen">⌘</button>
+          <button class="icon-button" id="soundButton" type="button" aria-label="Ton an oder aus">♪</button>
+          <button class="icon-button" id="pauseButton" type="button" aria-label="Spiel pausieren">Ⅱ</button>
+        </div>
+      </header>
+
+      <section class="stage" id="stage">
+        <canvas id="gameCanvas" width="1280" height="720" tabindex="0" aria-label="Spielbereich"></canvas>
+
+        <div class="loading" id="loadingScreen">
+          <img src="assets/characters/schorsch.svg" alt="Schorsch" />
+          <span>Schorsch schnürt den Rucksack …</span>
+        </div>
+
+        <section class="panel start-panel" id="startPanel" aria-labelledby="gameTitle">
+          <div class="start-copy">
+            <p class="eyebrow">Ein Sprung durch Sachsen</p>
+            <h1 id="gameTitle">Schorsch im<br /><em>Erzgebirge</em></h1>
+            <p>
+              Sammle Bergkristalle und regionale Andenken, entdecke geheime Zwischenlevel
+              erreiche den Fichtelberg und schalte danach den gefluteten Bonusstollen frei.
+            </p>
+            <div class="controls-hint">
+              <span><kbd>A</kbd><kbd>D</kbd> Laufen</span>
+              <span><kbd>W</kbd> / <kbd>Leertaste</kbd> Springen</span>
+            </div>
+            <button class="menu-skills-button" id="menuSkillsButton" type="button">
+              <span aria-hidden="true">✦</span> Talentpfad &amp; Fähigkeiten
+            </button>
+          </div>
+
+          <div class="character-card">
+            <span class="card-label">Deine Spielfigur</span>
+            <div class="character-preview" id="characterPreview">
+              <span class="preview-halo"></span>
+              <img src="assets/characters/schorsch.svg" alt="Schorsch winkt" />
+            </div>
+            <label class="name-field">
+              <span>Name</span>
+              <input id="playerName" type="text" maxlength="16" value="Schorsch" autocomplete="off" />
+            </label>
+            <button class="primary-button" id="startButton" type="button">
+              Abenteuer starten <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="panel map-panel" id="mapPanel" hidden aria-labelledby="mapTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Deine Reise</p>
+              <h2 id="mapTitle">Zehn Orte, ein Gipfel &amp; ein Bonusstollen</h2>
+            </div>
+            <button class="close-button" data-close-panel type="button" aria-label="Karte schließen">×</button>
+          </div>
+          <div class="level-grid" id="levelGrid"></div>
+          <div class="map-footer">
+            <span><i class="dot complete"></i> geschafft</span>
+            <span><i class="dot current"></i> aktuell</span>
+            <span><i class="dot locked"></i> noch verborgen</span>
+          </div>
+        </section>
+
+        <section class="panel outfit-panel" id="outfitPanel" hidden aria-labelledby="outfitTitle">
+          <div class="panel-heading outfit-heading">
+            <div>
+              <p class="eyebrow">Schorschs Wanderstube</p>
+              <h2 id="outfitTitle">Outfits für unterwegs</h2>
+              <p>Finde Bergfunken und kombiniere Jacke, Mütze, Schuhe und Zubehör. Pro Kategorie kann Schorsch genau ein Teil tragen – jede Zusammenstellung wird als eigene, passgenaue Schorsch-Variante dargestellt.</p>
+            </div>
+            <div class="shop-heading-actions">
+              <span class="wallet-chip" aria-label="Verfügbare Bergfunken"><i>◆</i><b id="shopWallet">0</b></span>
+              <button class="close-button" data-close-panel type="button" aria-label="Outfit-Laden schließen">×</button>
+            </div>
+          </div>
+          <div class="outfit-layout">
+            <div class="shop-preview" aria-label="Vorschau von Schorschs Outfit">
+              <span class="preview-halo"></span>
+              <canvas id="outfitPreviewCanvas" width="260" height="340" aria-label="Schorsch in seiner gewählten Outfit-Kombination"></canvas>
+              <small id="previewLoadout">Deine Kombination</small>
+            </div>
+            <div class="outfit-grid" id="outfitGrid"></div>
+          </div>
+        </section>
+
+        <section class="panel pause-panel" id="pausePanel" hidden aria-labelledby="pauseTitle">
+          <p class="eyebrow">Kurze Rast</p>
+          <h2 id="pauseTitle">Spiel pausiert</h2>
+          <div class="pause-actions">
+            <button class="primary-button" id="resumeButton" type="button">Weiterspielen</button>
+            <button class="secondary-button" id="restartButton" type="button">Level neu starten</button>
+            <button class="secondary-button" id="skillsButton" type="button">Talentpfad ansehen</button>
+          </div>
+        </section>
+
+        <section class="panel skills-panel" id="skillsPanel" hidden aria-labelledby="skillsTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Schorschs Rucksackwissen</p>
+              <h2 id="skillsTitle">Schorschs Talentpfad</h2>
+            </div>
+            <div class="shop-heading-actions">
+              <span class="wallet-chip" aria-label="Verfügbare Bergfunken"><i>◆</i><b id="skillsWallet">0</b></span>
+              <button class="close-button" data-close-panel type="button" aria-label="Talentpfad schließen">×</button>
+            </div>
+          </div>
+          <p class="skills-intro">Alle Talente sind freiwillige Hilfen: Kein Level verlangt sie zum Durchspielen.</p>
+          <div class="skill-tree" id="skillTree"></div>
+          <button class="secondary-button" data-close-panel type="button">Zurück zum Spiel</button>
+        </section>
+
+        <section class="panel finish-panel" id="finishPanel" hidden aria-labelledby="finishTitle">
+          <div class="finish-stars" aria-hidden="true">✦ ◆ ✦</div>
+          <p class="eyebrow">Ziel erreicht</p>
+          <h2 id="finishTitle">Stark gemacht!</h2>
+          <p id="finishText">Du hast alle Bergfunken gefunden.</p>
+          <div class="score-row">
+            <span><b id="finishSparkCount">0</b><small>Bergfunken</small></span>
+            <span><b id="finishItemCount">0/5</b><small>Andenken</small></span>
+            <span><b id="finishTime">0:00</b><small>Zeit</small></span>
+          </div>
+          <button class="primary-button" id="nextLevelButton" type="button">Nächster Ort →</button>
+          <button class="text-button" id="finishMapButton" type="button">Zur Levelkarte</button>
+        </section>
+
+        <div class="toast" id="toast" role="status"></div>
+
+        <div class="touch-controls" aria-label="Touch-Steuerung">
+          <div class="touch-move">
+            <button data-control="left" type="button" aria-label="Nach links">←</button>
+            <button data-control="right" type="button" aria-label="Nach rechts">→</button>
+          </div>
+          <div class="touch-vertical">
+            <button class="touch-dive" data-control="down" type="button" aria-label="Abtauchen">↓</button>
+            <button class="touch-jump" data-control="jump" type="button" aria-label="Springen oder auftauchen">↑</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="game.js?v=16"></script>
+  </body>
+</html>
