@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=20" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -186,10 +186,14 @@
         <div class="toast" id="toast" role="status"></div>
 
         <div class="touch-controls" aria-label="Touch-Steuerung">
-          <button class="touch-left" data-control="left" type="button" aria-label="Nach links">←</button>
-          <button class="touch-jump" data-control="jump" type="button" aria-label="Springen oder auftauchen">↑</button>
-          <button class="touch-right" data-control="right" type="button" aria-label="Nach rechts">→</button>
-          <button class="touch-dive" data-control="down" type="button" aria-label="Abtauchen">↓</button>
+          <div class="touch-move">
+            <button data-control="left" type="button" aria-label="Nach links">←</button>
+            <button data-control="right" type="button" aria-label="Nach rechts">→</button>
+          </div>
+          <div class="touch-vertical">
+            <button class="touch-dive" data-control="down" type="button" aria-label="Abtauchen">↓</button>
+            <button class="touch-jump" data-control="jump" type="button" aria-label="Springen oder auftauchen">↑</button>
+          </div>
         </div>
       </section>
     </main>
