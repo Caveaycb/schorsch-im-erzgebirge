@@ -146,6 +146,36 @@ input { -webkit-user-select: text; user-select: text; }
   isolation: isolate;
 }
 
+/* The mobile controls sit on a calm foreground ledge instead of an empty
+   strip. It deliberately covers the very bottom of the canvas, so no gameplay
+   object can be hidden behind a button. */
+.stage::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: none;
+  height: 82px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12px -3px, #a9cf69 0 12px, transparent 13px) 0 0 / 48px 19px repeat-x,
+    radial-gradient(circle at 18% 37%, rgba(228,207,137,.38) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 76% 65%, rgba(21,47,29,.28) 0 3px, transparent 3.5px),
+    linear-gradient(180deg, #83a856 0 8px, #5d7b40 9px 28%, #465f37 29% 60%, #344a31 61% 100%);
+  box-shadow: inset 0 5px 0 rgba(219,239,154,.36), inset 0 14px 14px rgba(28,59,29,.2);
+}
+
+.stage.is-underwater::after {
+  background:
+    radial-gradient(circle at 14% 28%, rgba(122,238,223,.45) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 71% 60%, rgba(145,246,232,.35) 0 3px, transparent 3.5px),
+    radial-gradient(ellipse at 17px -4px, #43878a 0 13px, transparent 14px) 0 0 / 52px 19px repeat-x,
+    linear-gradient(180deg, #32777b 0 9px, #285e64 10px 42%, #1d4650 43% 100%);
+  box-shadow: inset 0 5px 0 rgba(110,231,219,.34), inset 0 14px 14px rgba(7,43,53,.26);
+}
+
 canvas { width: 100%; max-width: 100%; min-width: 0; height: 100%; display: block; touch-action: none; }
 canvas:focus { outline: none; }
 
@@ -392,6 +422,7 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
   .system-actions { grid-column: 10 / 13; grid-row: 1; gap: 4px; justify-content: flex-end; }
   .icon-button { width: 36px; height: 36px; }
   .stage { padding-bottom: 78px; border-radius: 20px; }
+  .stage::after { display: block; }
   .touch-controls { display: flex; }
   .start-panel { inset: 3%; grid-template-columns: minmax(0, 1fr); overflow-y: auto; background: rgba(255,253,246,.95); }
   .start-copy { min-width: 0; }
