@@ -452,7 +452,7 @@
       { x: 3315, y: 566, baseX: 3315, r: 25, range: 78, speed: .84, phase: 2.7 },
       { x: 3910, y: 591, baseX: 3910, r: 25, range: 62, speed: .9, phase: .9 },
       { x: 5280, y: 581, baseX: 5280, r: 26, range: 94, speed: .94, phase: 2.2 },
-      { x: 6510, y: 466, baseX: 6510, baseY: 466, r: 21, range: 72, verticalRange: 20, speed: .82, phase: 1.4, kind: "flutter" },
+      { x: 6510, y: 466, baseX: 6510, baseY: 466, r: 21, range: 72, verticalRange: 20, speed: .82, phase: 1.4, kind: "sunBoost" },
     ];
 
     return {
@@ -675,7 +675,7 @@
           verticalRange: 22,
           speed: .62 + rng() * .22,
           phase: rng() * TAU,
-          kind: "flutter",
+          kind: "sunBoost",
         });
       }
 
@@ -810,7 +810,7 @@
       returnY: safeAnchor.y - 92,
       label: "Geheimer Stolleneingang",
     };
-    level.secret = { ...level.secretEntrance, found: false };
+    level.secret = { ...level.secretEntrance, found: false, used: false };
 
     const firstGround = grounds[Math.min(1, grounds.length - 1)] || grounds[0];
     const lateLedge = ledges
@@ -958,6 +958,7 @@
       runCycle: 0,
       stepDust: 0,
       airtime: 0,
+      sunBoost: 0,
     };
   }
 
@@ -995,9 +996,10 @@
   }
 
   function enterSecretRoom() {
-    if (game.inSecretRoom || game.secretCooldown > 0 || !game.level?.secretEntrance) return;
+    if (game.inSecretRoom || game.secretCooldown > 0 || !game.level?.secretEntrance || game.level.secret?.used) return;
     const parent = game.level;
     parent.secret.found = true;
+    parent.secret.used = true;
     parent.secretRoom ||= createSecretRoom(parent);
     game.mainLevel = parent;
     game.mainPlayer = game.player;
@@ -1160,6 +1162,7 @@
     player.invincible = Math.max(0, player.invincible - dt);
     player.landing = Math.max(0, player.landing - dt);
     player.stepDust = Math.max(0, player.stepDust - dt);
+    player.sunBoost = Math.max(0, player.sunBoost - dt);
     player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
     player.coyote = player.onGround ? 0.11 : Math.max(0, player.coyote - dt);
 
@@ -1181,7 +1184,7 @@
 
     for (const hazard of level.hazards) {
       hazard.x = hazard.baseX + Math.sin(game.time * hazard.speed + hazard.phase) * hazard.range;
-      if (hazard.kind === "flutter") {
+      if (hazard.kind === "sunBoost") {
         hazard.y = hazard.baseY + Math.sin(game.time * hazard.speed * 1.7 + hazard.phase) * hazard.verticalRange;
       }
     }
@@ -1193,8 +1196,9 @@
       + (held.down || pressed.has("ArrowDown") || pressed.has("KeyS") ? 1 : 0);
     const icy = level.specialMechanic === "ice-wind";
     const sprintTalent = game.talents.has("trailRunner");
-    const acceleration = (underwater ? 980 : player.onGround ? (icy ? 1780 : 2550) : 1550) * (sprintTalent ? 1.12 : 1);
-    const maxSpeed = (underwater ? 285 : 385) * (sprintTalent ? 1.14 : 1);
+    const sunPowered = player.sunBoost > 0;
+    const acceleration = (underwater ? 980 : player.onGround ? (icy ? 1780 : 2550) : 1550) * (sprintTalent ? 1.12 : 1) * (sunPowered ? 1.24 : 1);
+    const maxSpeed = (underwater ? 285 : 385) * (sprintTalent ? 1.14 : 1) * (sunPowered ? 1.28 : 1);
     if (move) {
       player.vx += move * acceleration * dt;
       player.direction = move;
@@ -1381,7 +1385,7 @@
       updateHud();
     }
 
-    if (!level.isBonusRoom && level.secretEntrance && game.secretCooldown <= 0 && rectsOverlap(player, level.secretEntrance)) {
+    if (!level.isBonusRoom && level.secretEntrance && !level.secret?.used && game.secretCooldown <= 0 && rectsOverlap(player, level.secretEntrance)) {
       enterSecretRoom();
       return;
     }
@@ -1404,14 +1408,28 @@
       playTone(520, 0.22, "sine", 0.04, 210);
     }
 
+    for (const hazard of level.hazards) {
+      if (hazard.kind !== "sunBoost" || hazard.collected) continue;
+      const dx = player.x + player.w / 2 - hazard.x;
+      const dy = player.y + player.h / 2 - hazard.y;
+      if (Math.hypot(dx, dy) >= hazard.r + 27) continue;
+      hazard.collected = true;
+      player.sunBoost = Math.max(player.sunBoost, 6);
+      burst(hazard.x, hazard.y, "#ffd35d", 28, 255);
+      playTone(620, .12, "triangle", .045, 180);
+      window.setTimeout(() => playTone(880, .16, "sine", .035, 100), 70);
+      showToast("Sonnenkraft! 6 Sekunden schneller unterwegs.");
+    }
+
     if (player.invincible <= 0) {
       for (const hazard of level.hazards) {
+        if (hazard.collected || hazard.kind === "sunBoost") continue;
         const dx = player.x + player.w / 2 - hazard.x;
         const dy = player.y + player.h / 2 - hazard.y;
         if (Math.hypot(dx, dy) < hazard.r + 25) {
           const hazardName = level.underwater
             ? "ein Strömungsgeist"
-            : hazard.kind === "flutter" ? "ein flatternder Lichterwichtel" : "ein Rußwichtel";
+            : "ein Rußwichtel";
           loseHeart(`Hoppla – ${hazardName}!`);
           return;
         }
@@ -1741,6 +1759,80 @@
       default:
         for (let i = 0; i < 4; i += 1) drawFachwerkHouse(x - 270 + i * 160, 458, 0.62, level.accent);
     }
+    if (!level.underwater) drawEnergyBackdrop(level, x);
+    ctx.restore();
+  }
+
+  function drawEnergyBackdrop(level, x) {
+    const groundY = level.mood === "summit" ? 502 : level.mood === "night" ? 518 : 525;
+    const solarScale = level.mood === "mine" || level.mood === "rail" ? .82 : .68;
+    ctx.save();
+    ctx.globalAlpha = level.mood === "night" ? .86 : .78;
+    drawSolarArray(x - 410, groundY, solarScale);
+    drawEVChargingPoint(x + 300, groundY + 4, .78);
+    if (level.mood === "rail" || level.mood === "village" || level.mood === "rooftops") drawElectricShuttle(x + 395, groundY + 8, .62);
+    ctx.restore();
+  }
+
+  function drawSolarArray(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#4c5549";
+    ctx.fillRect(-94, 0, 188, 7);
+    ctx.fillRect(-49, 4, 8, 34);
+    ctx.fillRect(42, 4, 8, 34);
+    for (let panel = 0; panel < 4; panel += 1) {
+      const px = -96 + panel * 49;
+      ctx.fillStyle = "#193f60";
+      ctx.beginPath();
+      ctx.moveTo(px, -47); ctx.lineTo(px + 43, -55); ctx.lineTo(px + 47, -10); ctx.lineTo(px + 4, -3);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "#98cfdb";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(188,231,238,.7)";
+      ctx.beginPath(); ctx.moveTo(px + 12, -43); ctx.lineTo(px + 17, -7); ctx.moveTo(px + 27, -46); ctx.lineTo(px + 32, -9); ctx.stroke();
+    }
+    ctx.fillStyle = "#d8e66c";
+    ctx.beginPath(); ctx.arc(0, -66, 6, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEVChargingPoint(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#314c4d";
+    ctx.beginPath(); ctx.roundRect(-18, -58, 36, 58, 6); ctx.fill();
+    ctx.fillStyle = "#bce9d5";
+    ctx.beginPath(); ctx.roundRect(-12, -51, 24, 24, 4); ctx.fill();
+    ctx.fillStyle = "#248b82";
+    ctx.font = "bold 18px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("⚡", 0, -33);
+    ctx.strokeStyle = "#2d4746";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(15, -32); ctx.quadraticCurveTo(37, -30, 30, -8); ctx.lineTo(24, -5); ctx.stroke();
+    ctx.fillStyle = "#e7f4df";
+    ctx.beginPath(); ctx.arc(24, -5, 5, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawElectricShuttle(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "#e9f3e6";
+    ctx.beginPath(); ctx.roundRect(-48, -30, 96, 28, 10); ctx.fill();
+    ctx.fillStyle = "#2d7f77";
+    ctx.beginPath(); ctx.roundRect(-30, -46, 56, 22, 8); ctx.fill();
+    ctx.fillStyle = "#a8dce3";
+    ctx.fillRect(-22, -40, 17, 10); ctx.fillRect(1, -40, 17, 10);
+    ctx.fillStyle = "#354343";
+    ctx.beginPath(); ctx.arc(-28, 0, 9, 0, TAU); ctx.arc(28, 0, 9, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#f4c958";
+    ctx.fillRect(38, -20, 6, 7);
     ctx.restore();
   }
 
@@ -1758,7 +1850,7 @@
       if (spring.x + spring.w >= left && spring.x <= right) drawSpring(spring, level);
     }
     for (const checkpoint of level.checkpoints || [level.checkpoint]) drawCheckpoint(checkpoint, level);
-    if (level.secretEntrance) drawSecretEntrance(level.secretEntrance, level);
+    if (level.secretEntrance && !level.secret?.used) drawSecretEntrance(level.secretEntrance, level);
     drawGoal(level.goal, level);
     for (const crystal of level.collectibles) {
       if (!crystal.collected && crystal.x >= left && crystal.x <= right) drawCrystal(crystal, level);
@@ -1770,7 +1862,7 @@
       if (!life.collected && life.x >= left && life.x <= right) drawLifePickup(life, level);
     }
     for (const hazard of level.hazards) {
-      if (hazard.x >= left && hazard.x <= right) drawHazard(hazard, level);
+      if (!hazard.collected && hazard.x >= left && hazard.x <= right) drawHazard(hazard, level);
     }
     if (level.handcrafted) drawLevelHints(level);
     if (level.mood === "mine" || level.backdrop === "mine") drawCaveDarkness(level);
@@ -1968,7 +2060,7 @@
   }
 
   function drawSecretPathGuides(level) {
-    const guides = level.secretEntrance
+    const guides = level.secretEntrance && !level.secret?.used
       ? [{ x: level.secretEntrance.x + level.secretEntrance.w / 2, y: level.secretEntrance.y - 16 }]
       : [];
     for (const guide of guides) {
@@ -2620,7 +2712,7 @@
       ctx.restore();
       return;
     }
-    if (hazard.kind === "flutter") {
+    if (hazard.kind === "sunBoost") {
       const rayWiggle = Math.sin(game.time * hazard.speed * 6 + hazard.phase) * .12;
       ctx.translate(x, y);
       ctx.shadowColor = "rgba(255,185,63,.82)";
