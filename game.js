@@ -660,12 +660,21 @@
   }
 
   function createLevel(index) {
-    if (LEVELS[index]?.underwater) return createFloodedMineLevel();
-    if (LEVELS[index]?.mood === "solar") return createSolarRailBonusLevel();
+    if (LEVELS[index]?.underwater) {
+      const floodedMine = createFloodedMineLevel();
+      removeGoalApproachCollectibles(floodedMine);
+      return floodedMine;
+    }
+    if (LEVELS[index]?.mood === "solar") {
+      const solarRail = createSolarRailBonusLevel();
+      removeGoalApproachCollectibles(solarRail);
+      return solarRail;
+    }
     if (index === 0) {
       const seiffen = createSeiffenLevel();
       addPuzzleChallenge(seiffen);
       addNextStageFeatures(seiffen);
+      removeGoalApproachCollectibles(seiffen);
       return seiffen;
     }
     const rng = seededRandom(9103 + index * 719);
@@ -794,7 +803,14 @@
     addRegionalFeatures(level);
     addPuzzleChallenge(level);
     addNextStageFeatures(level);
+    removeGoalApproachCollectibles(level);
     return level;
+  }
+
+  function removeGoalApproachCollectibles(level) {
+    if (!level.goal || !level.collectibles) return;
+    const clearZoneStart = level.goal.x - 300;
+    level.collectibles = level.collectibles.filter((collectible) => collectible.x < clearZoneStart);
   }
 
   function levelPlatformType(levelIndex, segmentIndex, ledgeIndex) {
@@ -1110,6 +1126,7 @@
       secret: { found: true },
       secretEntrance: null,
     };
+    removeGoalApproachCollectibles(room);
     return room;
   }
 
