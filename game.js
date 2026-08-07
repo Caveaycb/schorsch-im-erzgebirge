@@ -522,7 +522,7 @@
     });
 
     const platforms = [
-      // 1. Anfahrt: sichere Einführung und ein erster beweglicher Wagen.
+      // 1. Anfahrt: sichere Einführung und eine erste bewegliche Holzplattform.
       ground("rail-g0", 0, 620, 840),
       ground("rail-g1", 975, 605, 1010),
       ground("rail-g2", 2125, 620, 820),
@@ -536,34 +536,34 @@
       ground("rail-g7", 7210, 590, 840),
 
       ledge("rail-start-1", 320, 505, 180, "wood"),
-      ledge("rail-start-2", 565, 415, 190, "train", { axis: "x", range: 58, speed: .52, phase: .4 }),
-      ledge("rail-gap-car", 856, 510, 104, "train", { axis: "x", range: 32, speed: .76, phase: 1.2 }),
+      ledge("rail-start-2", 565, 415, 190, "wood", { axis: "x", range: 58, speed: .52, phase: .4 }),
+      ledge("rail-gap-car", 856, 510, 104, "stone", { axis: "x", range: 32, speed: .76, phase: 1.2 }),
 
-      ledge("rail-dash-1", 1165, 470, 250, "train", { axis: "x", range: 88, speed: .48, phase: .8 }),
+      ledge("rail-dash-1", 1165, 470, 250, "wood", { axis: "x", range: 88, speed: .48, phase: .8 }),
       ledge("rail-dash-2", 1510, 370, 180, "wood"),
-      ledge("rail-dash-3", 1745, 460, 170, "train", { axis: "y", range: 32, speed: .66, phase: 2.1 }),
+      ledge("rail-dash-3", 1745, 460, 170, "stone", { axis: "y", range: 32, speed: .66, phase: 2.1 }),
 
       ledge("rail-lookout-1", 2250, 500, 180, "stone"),
-      ledge("rail-lookout-2", 2470, 400, 185, "train", { axis: "y", range: 30, speed: .62, phase: .9 }),
+      ledge("rail-lookout-2", 2470, 400, 185, "wood", { axis: "y", range: 30, speed: .62, phase: .9 }),
       ledge("rail-lookout-3", 2700, 295, 220, "wood"),
       ledge("rail-lookout-down", 2880, 430, 145, "stone"),
 
       ledge("rail-switch-1", 3270, 465, 190, "wood"),
-      ledge("rail-switch-2", 3485, 375, 180, "train", { axis: "x", range: 58, speed: .54, phase: 2.5 }),
+      ledge("rail-switch-2", 3485, 375, 180, "stone", { axis: "x", range: 58, speed: .54, phase: 2.5 }),
       ledge("rail-switch-3", 3950, 455, 165, "wood"),
 
       ledge("rail-valley-1", 4350, 495, 185, "stone"),
-      ledge("rail-valley-2", 4600, 390, 205, "train", { axis: "x", range: 76, speed: .5, phase: .6 }),
+      ledge("rail-valley-2", 4600, 390, 205, "wood", { axis: "x", range: 76, speed: .5, phase: .6 }),
       ledge("rail-valley-3", 4860, 500, 150, "wood"),
-      ledge("rail-tunnel-1", 5270, 465, 220, "train", { axis: "x", range: 82, speed: .46, phase: 1.7 }),
+      ledge("rail-tunnel-1", 5270, 465, 220, "stone", { axis: "x", range: 82, speed: .46, phase: 1.7 }),
       ledge("rail-tunnel-2", 5545, 365, 175, "wood"),
       ledge("rail-tunnel-3", 5785, 460, 165, "stone"),
 
       ledge("rail-final-1", 6315, 475, 190, "wood"),
-      ledge("rail-final-2", 6575, 365, 205, "train", { axis: "y", range: 36, speed: .58, phase: 2.7 }),
+      ledge("rail-final-2", 6575, 365, 205, "wood", { axis: "y", range: 36, speed: .58, phase: 2.7 }),
       ledge("rail-final-3", 6850, 455, 175, "stone"),
       ledge("rail-depot-1", 7360, 445, 185, "wood"),
-      ledge("rail-depot-2", 7605, 350, 195, "train", { axis: "x", range: 44, speed: .48, phase: .1 }),
+      ledge("rail-depot-2", 7605, 350, 195, "stone", { axis: "x", range: 44, speed: .48, phase: .1 }),
     ];
 
     const crystalPositions = [
@@ -606,7 +606,7 @@
       checkpoint: { x: 2025, y: 534, active: false, label: "Haltepunkt Waldkante" },
       start: { x: 92, y: 522 },
       collected: 0,
-      mechanic: "Schnelle Wagen, ein Höhenweg und ein Weichensignal",
+      mechanic: "Schnelle Plattformen, ein Höhenweg und ein Weichensignal",
       currents: [{ x: 5170, w: 700, push: 185 }],
       windZones: [],
       handcrafted: true,
@@ -616,7 +616,7 @@
       puzzleAnchorIndex: 3,
       secretAnchorId: "rail-lookout-3",
       hints: [
-        { x: 430, y: 620, text: "WAGEN MITNEHMEN – DANN HOCHSPRINGEN" },
+        { x: 430, y: 620, text: "BEWEGLICHE PLATTFORM – DANN HOCHSPRINGEN" },
         { x: 2765, y: 620, text: "HÖHENWEG: SELTENER FUND & GEHEIMGANG" },
         { x: 3605, y: 595, text: "WEICHE: DAS ROTE SIGNAL BERÜHREN" },
         { x: 6460, y: 615, text: "SCHNELLE TALSTRECKE – FEDERN NUTZEN" },
@@ -1008,7 +1008,7 @@
       w: 242,
       h: 26,
       ground: false,
-      type: kind.id === "railSignal" ? "train" : kind.id === "solarRelay" ? "stone" : "wood",
+      type: kind.id === "solarRelay" ? "stone" : "wood",
       moving: false,
       moveRange: 0,
       moveSpeed: 0,
