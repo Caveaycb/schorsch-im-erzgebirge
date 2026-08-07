@@ -583,11 +583,12 @@
     if (LEVELS[index]?.underwater) return createFloodedMineLevel();
     if (index === 0) {
       const seiffen = createSeiffenLevel();
+      addPuzzleChallenge(seiffen);
       addNextStageFeatures(seiffen);
       return seiffen;
     }
     const rng = seededRandom(9103 + index * 719);
-    const worldWidth = 6800 + index * 210;
+    const worldWidth = 8600 + index * 280;
     const platforms = [];
     const collectibles = [];
     const hazards = [];
@@ -600,7 +601,7 @@
       const passage = segmentIndex % 4;
       const isSprintPassage = passage === 0 || passage === 3;
       const width = Math.min(
-        (isSprintPassage ? 720 + rng() * 190 : 405 + rng() * 185),
+        (isSprintPassage ? 940 + rng() * 240 : 650 + rng() * 220),
         worldWidth - cursor,
       );
       const y = segmentIndex === 0 ? 610 : 570 + rng() * 66;
@@ -618,11 +619,11 @@
       };
       platforms.push(platform);
 
-      const elevatedCount = isSprintPassage ? 1 : 3 + (rng() > 0.52 ? 1 : 0);
+      const elevatedCount = isSprintPassage ? 1 : 2 + (rng() > 0.67 ? 1 : 0);
       for (let j = 0; j < elevatedCount; j += 1) {
-        const elevatedWidth = isSprintPassage ? 180 + rng() * 80 : 120 + rng() * 85;
+        const elevatedWidth = isSprintPassage ? 220 + rng() * 95 : 165 + rng() * 105;
         const px = cursor + 90 + rng() * Math.max(90, width - elevatedWidth - 140);
-        const py = isSprintPassage ? y - 108 - rng() * 25 : y - 100 - j * 82 - rng() * 30;
+        const py = isSprintPassage ? y - 108 - rng() * 25 : y - 102 - j * 78 - rng() * 24;
         platforms.push({
           id: `p-${platformId++}`,
           x: px,
@@ -683,7 +684,7 @@
         springs.push({ x: cursor + width - 110, y: y - 18, w: 54, h: 18 });
       }
 
-      const gap = isSprintPassage ? 86 + rng() * 42 : 130 + rng() * Math.min(72 + index * 3, 108);
+      const gap = isSprintPassage ? 120 + rng() * 58 : 165 + rng() * Math.min(92 + index * 4, 142);
       cursor += width + gap;
     }
 
@@ -710,6 +711,7 @@
       collected: 0,
     };
     addRegionalFeatures(level);
+    addPuzzleChallenge(level);
     addNextStageFeatures(level);
     return level;
   }
@@ -735,6 +737,118 @@
         label: index === 0 ? "Erste Rast" : "Zweite Rast",
       };
     });
+  }
+
+  const PUZZLE_KINDS = [
+    { id: "crystalChime", name: "Kristallklang", hint: "Bringe die drei Kristalle zum Klingen." },
+    { id: "crankBridge", name: "Kurbelbrücke", hint: "Drehe die hölzerne Kurbel." },
+    { id: "solarRelay", name: "Sonnenfänger", hint: "Lade das Solarfeld einen Moment auf." },
+    { id: "railSignal", name: "Bahn-Signal", hint: "Schalte das grüne Signal frei." },
+    { id: "windWheels", name: "Windrad-Reihe", hint: "Bringe die drei Windräder nacheinander in Schwung." },
+  ];
+
+  function addPuzzleChallenge(level) {
+    if (level.underwater || level.isBonusRoom) return;
+    const grounds = level.platforms.filter((platform) => platform.ground);
+    if (grounds.length < 3) return;
+
+    const kind = PUZZLE_KINDS[level.index % PUZZLE_KINDS.length];
+    const anchorIndex = Math.max(1, Math.min(grounds.length - 2, Math.floor(grounds.length * .54)));
+    const anchor = grounds[anchorIndex];
+    const baseX = anchor.x + Math.min(anchor.w * .52, Math.max(170, anchor.w - 230));
+    const bridgeY = anchor.y - 136;
+    const bridge = {
+      id: `puzzle-bridge-${level.index}`,
+      x: baseX + 160,
+      y: bridgeY,
+      baseX: baseX + 160,
+      baseY: bridgeY,
+      w: 242,
+      h: 26,
+      ground: false,
+      type: kind.id === "railSignal" ? "train" : kind.id === "solarRelay" ? "stone" : "wood",
+      moving: false,
+      moveRange: 0,
+      moveSpeed: 0,
+      moveAxis: "x",
+      phase: 0,
+      puzzleBridge: true,
+      active: false,
+    };
+    const puzzle = {
+      ...kind,
+      solved: false,
+      progress: 0,
+      charge: 0,
+      bridgeId: bridge.id,
+      nodes: [],
+    };
+    const node = (x, y, index = puzzle.nodes.length) => puzzle.nodes.push({ x, y, index, active: false, radius: 27 });
+
+    if (kind.id === "crystalChime") {
+      node(baseX - 52, anchor.y - 42, 0);
+      node(baseX + 38, anchor.y - 105, 1);
+      node(baseX + 128, anchor.y - 42, 2);
+    } else if (kind.id === "windWheels") {
+      node(baseX - 36, anchor.y - 48, 0);
+      node(baseX + 66, anchor.y - 96, 1);
+      node(baseX + 154, anchor.y - 48, 2);
+    } else {
+      node(baseX + 28, anchor.y - 48, 0);
+    }
+
+    level.platforms.push(bridge);
+    level.collectibles.push({
+      id: `puzzle-reward-${level.index}`,
+      x: bridge.x + bridge.w * .5,
+      y: bridge.y - 42,
+      collected: false,
+      phase: level.index * 1.71,
+    });
+    level.puzzle = puzzle;
+  }
+
+  function completePuzzle(level, puzzle) {
+    if (puzzle.solved) return;
+    puzzle.solved = true;
+    const bridge = level.platforms.find((platform) => platform.id === puzzle.bridgeId);
+    if (bridge) bridge.active = true;
+    const lastNode = puzzle.nodes[puzzle.nodes.length - 1];
+    burst(lastNode.x, lastNode.y, "#ffe27a", 28, 250);
+    playTone(540, .12, "triangle", .04, 170);
+    window.setTimeout(() => playTone(760, .16, "sine", .035, 150), 75);
+    showToast(`${puzzle.name} gelöst – der Höhenweg ist frei!`);
+  }
+
+  function updatePuzzleChallenge(level, player, dt) {
+    const puzzle = level.puzzle;
+    if (!puzzle || puzzle.solved) return;
+    const playerCenter = { x: player.x + player.w * .5, y: player.y + player.h * .5 };
+    const isNear = (node) => Math.hypot(playerCenter.x - node.x, playerCenter.y - node.y) < node.radius + 24;
+
+    if (puzzle.id === "solarRelay") {
+      const relay = puzzle.nodes[0];
+      if (isNear(relay)) {
+        puzzle.charge = Math.min(1.15, puzzle.charge + dt);
+        relay.active = true;
+        if (puzzle.charge >= 1.1) completePuzzle(level, puzzle);
+      } else {
+        puzzle.charge = Math.max(0, puzzle.charge - dt * .26);
+      }
+      return;
+    }
+
+    const sequential = puzzle.id === "crystalChime" || puzzle.id === "windWheels";
+    for (const node of puzzle.nodes) {
+      if (node.active || !isNear(node)) continue;
+      if (sequential && node.index !== puzzle.progress) continue;
+      node.active = true;
+      puzzle.progress += 1;
+      burst(node.x, node.y, puzzle.id === "windWheels" ? "#bce9f0" : "#ffd35d", 11, 145);
+      playTone(440 + node.index * 120, .09, "sine", .035, 90);
+      if (puzzle.progress >= puzzle.nodes.length) completePuzzle(level, puzzle);
+      break;
+    }
   }
 
   function addRegionalFeatures(level) {
@@ -793,7 +907,7 @@
   function addNextStageFeatures(level) {
     const itemMeta = REGIONAL_ITEMS[level.mood] || REGIONAL_ITEMS.forest;
     const grounds = level.platforms.filter((platform) => platform.ground);
-    const ledges = level.platforms.filter((platform) => !platform.ground && !platform.moving && platform.w >= 135);
+    const ledges = level.platforms.filter((platform) => !platform.ground && !platform.moving && !platform.puzzleBridge && platform.w >= 135);
     const entranceAnchor = level.handcrafted
       ? level.platforms.find((platform) => platform.id === "s-secret-3")
       : ledges
@@ -1167,7 +1281,10 @@
     player.coyote = player.onGround ? 0.11 : Math.max(0, player.coyote - dt);
 
     for (const platform of level.platforms) {
-      if (platform.toggle) {
+      if (platform.puzzleBridge) {
+        platform.active = Boolean(level.puzzle?.solved);
+        platform.visibility = platform.active ? 1 : 0;
+      } else if (platform.toggle) {
         const glowWave = (Math.sin(game.time * TAU / platform.toggle.period + platform.toggle.phase) + 1) * .5;
         platform.visibility = .12 + glowWave * .88;
         platform.active = platform.visibility > .34;
@@ -1314,6 +1431,8 @@
         playTone(260, 0.18, "square", 0.035, 520);
       }
     }
+
+    updatePuzzleChallenge(level, player, dt);
 
     for (const crystal of level.collectibles) {
       if (crystal.collected) continue;
@@ -1633,6 +1752,7 @@
     else if (!hasDedicatedBackdrop && level.mood === "summit") ctx.filter = "brightness(1.06) saturate(.82)";
     ctx.drawImage(image, x, y, width, height);
     ctx.filter = "none";
+    drawBackdropDepth(level, visibleWidth);
 
     const readability = ctx.createLinearGradient(0, 250, 0, H);
     readability.addColorStop(0, "rgba(18,42,38,0)");
@@ -1640,6 +1760,44 @@
     readability.addColorStop(1, level.mood === "mine" ? "rgba(9,19,22,.28)" : "rgba(15,33,26,.18)");
     ctx.fillStyle = readability;
     ctx.fillRect(0, 0, visibleWidth, H);
+    ctx.restore();
+  }
+
+  function drawBackdropDepth(level, visibleWidth) {
+    const night = level.mood === "night";
+    ctx.save();
+    const haze = ctx.createLinearGradient(0, 270, 0, H);
+    haze.addColorStop(0, "rgba(255,255,245,0)");
+    haze.addColorStop(.58, night ? "rgba(144,172,196,.08)" : "rgba(230,245,220,.15)");
+    haze.addColorStop(1, "rgba(15,45,34,0)");
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, 220, visibleWidth, H - 220);
+
+    ctx.globalAlpha = night ? .16 : .13;
+    ctx.filter = "blur(4px)";
+    const parallax = game.cameraX * .16;
+    for (let i = -1; i < 8; i += 1) {
+      const x = wrap(i * 190 - parallax, -150, visibleWidth + 160);
+      const h = 96 + hash(i * 19 + level.index * 13) * 88;
+      ctx.fillStyle = night ? "#1c3740" : "#315943";
+      ctx.beginPath();
+      ctx.moveTo(x, 605);
+      ctx.lineTo(x + 32, 605 - h);
+      ctx.lineTo(x + 66, 605);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = night ? .15 : .12;
+    ctx.filter = "blur(8px)";
+    ctx.fillStyle = night ? "#172c36" : "#254d39";
+    const nearShift = game.cameraX * .31;
+    for (let i = -1; i < 6; i += 1) {
+      const x = wrap(i * 280 - nearShift, -180, visibleWidth + 200);
+      ctx.beginPath();
+      ctx.ellipse(x + 70, H - 36, 100, 85 + (i % 2) * 24, 0, 0, TAU);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -1844,7 +2002,7 @@
     ctx.translate(-game.cameraX, 0);
     drawWorldDecor(level);
     for (const platform of level.platforms) {
-      if (platform.x + platform.w >= left && platform.x <= right) drawPlatform(platform, level);
+      if (platform.active !== false && platform.x + platform.w >= left && platform.x <= right) drawPlatform(platform, level);
     }
     for (const spring of level.springs) {
       if (spring.x + spring.w >= left && spring.x <= right) drawSpring(spring, level);
@@ -1852,6 +2010,7 @@
     for (const checkpoint of level.checkpoints || [level.checkpoint]) drawCheckpoint(checkpoint, level);
     if (level.secretEntrance && !level.secret?.used) drawSecretEntrance(level.secretEntrance, level);
     drawGoal(level.goal, level);
+    if (level.puzzle) drawPuzzleChallenge(level.puzzle, level);
     for (const crystal of level.collectibles) {
       if (!crystal.collected && crystal.x >= left && crystal.x <= right) drawCrystal(crystal, level);
     }
@@ -1868,6 +2027,84 @@
     if (level.mood === "mine" || level.backdrop === "mine") drawCaveDarkness(level);
     drawParticles();
     if (game.player) drawPlayer(game.player);
+    ctx.restore();
+  }
+
+  function drawPuzzleChallenge(puzzle, level) {
+    const firstNode = puzzle.nodes[0];
+    ctx.save();
+    ctx.font = "800 10px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(20,48,43,.76)";
+    ctx.beginPath(); ctx.roundRect(firstNode.x - 58, firstNode.y - 76, 116, 20, 8); ctx.fill();
+    ctx.fillStyle = puzzle.solved ? "#dff5b8" : "#fff4c2";
+    ctx.fillText(puzzle.solved ? "WEG FREI" : puzzle.name.toUpperCase(), firstNode.x, firstNode.y - 62);
+
+    for (const node of puzzle.nodes) {
+      const glow = node.active || puzzle.solved;
+      ctx.save();
+      ctx.translate(node.x, node.y);
+      ctx.shadowColor = glow ? "#ffe27a" : "rgba(255,233,155,.4)";
+      ctx.shadowBlur = glow ? 16 : 5;
+
+      if (puzzle.id === "crystalChime") {
+        ctx.fillStyle = glow ? "#ffd75c" : "#6ea4ad";
+        ctx.beginPath();
+        ctx.moveTo(0, -23); ctx.lineTo(14, -6); ctx.lineTo(8, 19); ctx.lineTo(-8, 19); ctx.lineTo(-14, -6); ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = "#eff8de";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, -19); ctx.lineTo(0, 14); ctx.moveTo(0, -2); ctx.lineTo(11, -6); ctx.stroke();
+      } else if (puzzle.id === "crankBridge") {
+        ctx.strokeStyle = "#7c4b2f";
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(-2, 20); ctx.lineTo(-2, -17); ctx.stroke();
+        ctx.fillStyle = glow ? "#e8be55" : "#9e6842";
+        ctx.beginPath(); ctx.arc(-2, -18, 15, 0, TAU); ctx.fill();
+        ctx.strokeStyle = "#f5ddb0"; ctx.lineWidth = 2; ctx.stroke();
+        for (let spoke = 0; spoke < 4; spoke += 1) {
+          const angle = spoke * TAU / 4 + (glow ? game.time * 2 : 0);
+          ctx.beginPath(); ctx.moveTo(-2, -18); ctx.lineTo(-2 + Math.cos(angle) * 12, -18 + Math.sin(angle) * 12); ctx.stroke();
+        }
+      } else if (puzzle.id === "solarRelay") {
+        ctx.fillStyle = "#42564e";
+        ctx.fillRect(-24, 12, 48, 6);
+        ctx.fillRect(-4, 16, 8, 17);
+        ctx.fillStyle = "#1b526b";
+        ctx.beginPath(); ctx.moveTo(-28, -21); ctx.lineTo(19, -28); ctx.lineTo(27, 7); ctx.lineTo(-20, 13); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#9cd2dd"; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = "rgba(205,242,238,.65)";
+        ctx.beginPath(); ctx.moveTo(-11, -22); ctx.lineTo(-4, 10); ctx.moveTo(5, -25); ctx.lineTo(12, 8); ctx.moveTo(-24, -7); ctx.lineTo(23, -14); ctx.stroke();
+        ctx.fillStyle = "rgba(255,239,133,.22)";
+        ctx.beginPath(); ctx.arc(0, -8, 34, 0, TAU); ctx.fill();
+        ctx.fillStyle = "#ffd75c";
+        ctx.fillRect(-24, -39, 48, 5);
+        ctx.fillStyle = "#7bd6ae";
+        ctx.fillRect(-22, -38, 44 * Math.min(1, puzzle.charge / 1.1), 3);
+      } else if (puzzle.id === "railSignal") {
+        ctx.fillStyle = "#384849";
+        ctx.fillRect(-4, -36, 8, 57);
+        ctx.fillStyle = glow ? "#73df85" : "#d95d55";
+        ctx.beginPath(); ctx.arc(0, -43, 12, 0, TAU); ctx.fill();
+        ctx.strokeStyle = "#eff3de"; ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = "#324641";
+        ctx.fillRect(-18, 19, 36, 5);
+      } else if (puzzle.id === "windWheels") {
+        ctx.strokeStyle = "#75503a";
+        ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(0, 21); ctx.lineTo(0, -2); ctx.stroke();
+        ctx.fillStyle = glow ? "#bfe4e7" : "#91a8aa";
+        for (let blade = 0; blade < 4; blade += 1) {
+          const angle = blade * TAU / 4 + (glow ? game.time * 2.6 : 0);
+          ctx.save(); ctx.rotate(angle);
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(16, -14, 23, -3); ctx.lineTo(5, 5); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+        ctx.fillStyle = "#e9d587";
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -2274,6 +2511,16 @@
 
   function drawPlatform(platform, level) {
     ctx.save();
+    if (!platform.ground) {
+      ctx.globalAlpha = .23;
+      ctx.fillStyle = "#132c25";
+      ctx.filter = "blur(3px)";
+      ctx.beginPath();
+      ctx.ellipse(platform.x + platform.w * .53, platform.y + 38, Math.min(92, platform.w * .38), 9, 0, 0, TAU);
+      ctx.fill();
+      ctx.filter = "none";
+      ctx.globalAlpha = 1;
+    }
     if (platform.toggle) {
       ctx.globalAlpha = platform.visibility ?? 1;
       ctx.shadowColor = "#ffe178";
