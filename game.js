@@ -2707,11 +2707,12 @@
     }
 
     const plankW = 38;
-    for (let px = x; px < x + platform.w; px += plankW) {
-      const width = Math.min(plankW - 3, x + platform.w - px);
+    for (let plankIndex = 0, offset = 0; offset < platform.w; plankIndex += 1, offset += plankW) {
+      const px = x + offset;
+      const width = Math.min(plankW - 3, platform.w - offset);
       const plank = ctx.createLinearGradient(0, y - 2, 0, y + 20);
-      plank.addColorStop(0, Math.floor(px / plankW) % 2 ? "#e0a45b" : "#c88b49");
-      plank.addColorStop(.5, Math.floor(px / plankW) % 2 ? "#b9793e" : "#a96938");
+      plank.addColorStop(0, plankIndex % 2 ? "#e0a45b" : "#c88b49");
+      plank.addColorStop(.5, plankIndex % 2 ? "#b9793e" : "#a96938");
       plank.addColorStop(1, "#75462c");
       ctx.fillStyle = plank;
       ctx.beginPath(); ctx.roundRect(px, y - 2, width, 22, 4); ctx.fill();
@@ -2759,6 +2760,9 @@
   function drawMossyRockPlatform(platform, level) {
     const x = platform.x;
     const y = platform.y;
+    // Keep procedural surface details anchored to the platform's origin. Moving
+    // platforms may change their draw position, but their rocks and moss must not.
+    const visualSeed = Number.isFinite(platform.baseX) ? platform.baseX : x;
     const isMine = platform.type === "mine";
     const depth = Math.max(24, Math.min(platform.h, platform.ground ? 210 : 145));
     const bodyGradient = ctx.createLinearGradient(0, y, 0, y + depth);
@@ -2775,7 +2779,7 @@
       const py = y + 8 + row * rowHeight;
       const offset = row % 2 ? -39 : -7;
       for (let col = 0; col < Math.ceil(platform.w / 70) + 2; col += 1) {
-        const seed = x * .013 + row * 31 + col * 17;
+        const seed = visualSeed * .013 + row * 31 + col * 17;
         const px = x + offset + col * 70;
         const width = 59 + hash(seed) * 21;
         const height = 34 + hash(seed + 7) * 13;
@@ -2824,8 +2828,8 @@
     ctx.fillStyle = isMine ? "rgba(217,180,91,.22)" : "#3f6b38";
     const dripCount = Math.min(15, Math.max(2, Math.floor(platform.w / 42)));
     for (let i = 0; i < dripCount; i += 1) {
-      const px = x + 8 + hash(x * .041 + i * 17) * Math.max(1, platform.w - 16);
-      const drop = 4 + hash(x * .081 + i * 29) * 14;
+      const px = x + 8 + hash(visualSeed * .041 + i * 17) * Math.max(1, platform.w - 16);
+      const drop = 4 + hash(visualSeed * .081 + i * 29) * 14;
       ctx.beginPath();
       ctx.moveTo(px - 5, y + 7); ctx.quadraticCurveTo(px, y + 7 + drop, px + 4, y + 7); ctx.closePath(); ctx.fill();
     }
@@ -2834,8 +2838,8 @@
       const tuftCount = Math.min(13, Math.max(1, Math.floor(platform.w / 58)));
       ctx.lineCap = "round";
       for (let i = 0; i < tuftCount; i += 1) {
-        const tx = x + 16 + hash(x * .07 + i * 11) * Math.max(1, platform.w - 32);
-        const tall = 8 + hash(x * .13 + i * 23) * 8;
+        const tx = x + 16 + hash(visualSeed * .07 + i * 11) * Math.max(1, platform.w - 32);
+        const tall = 8 + hash(visualSeed * .13 + i * 23) * 8;
         ctx.strokeStyle = i % 3 ? "#4b793f" : "#88a94e";
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -2853,7 +2857,7 @@
       ctx.shadowBlur = 12;
       ctx.fillStyle = "rgba(255,177,45,.72)";
       for (let i = 0; i < Math.min(4, Math.floor(platform.w / 95)); i += 1) {
-        const px = x + 35 + hash(x + i * 47) * (platform.w - 70);
+        const px = x + 35 + hash(visualSeed + i * 47) * (platform.w - 70);
         ctx.beginPath(); ctx.moveTo(px, y + 23); ctx.lineTo(px + 5, y + 33); ctx.lineTo(px, y + 42); ctx.lineTo(px - 5, y + 33); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
@@ -2885,7 +2889,7 @@
     ctx.fillStyle = "#9c4b32";
     ctx.fillRect(x - 1, y + 28, platform.w + 2, 6);
     ctx.fillStyle = "rgba(244,244,230,.48)";
-    const steam = Math.sin(game.time * 2 + x) * 6;
+    const steam = Math.sin(game.time * 2 + (platform.baseX ?? x)) * 6;
     ctx.beginPath(); ctx.arc(x + 22 + steam, y - 47, 10, 0, TAU); ctx.arc(x + 28 + steam, y - 61, 15, 0, TAU); ctx.fill();
   }
 
