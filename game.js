@@ -502,6 +502,142 @@
     };
   }
 
+  function createBimmelbahnAdventureLevel() {
+    const meta = LEVELS[4];
+    const worldWidth = 8050;
+    const ground = (id, x, y, w) => ({
+      id, x, y, baseX: x, baseY: y, w, h: H - y + 80, ground: true, type: "earth",
+    });
+    const ledge = (id, x, y, w, type = "wood", movement = null, extra = null) => ({
+      id, x, y, baseX: x, baseY: y, w, h: 26, ground: false, type,
+      moving: Boolean(movement),
+      moveRange: movement?.range || 0,
+      moveSpeed: movement?.speed || 0,
+      moveAxis: movement?.axis || "x",
+      phase: movement?.phase || 0,
+      ...(extra || {}),
+    });
+
+    const platforms = [
+      // 1. Anfahrt: sichere Einführung und ein erster beweglicher Wagen.
+      ground("rail-g0", 0, 620, 840),
+      ground("rail-g1", 975, 605, 1010),
+      ground("rail-g2", 2125, 620, 820),
+      // 2. Weichenhof: Signalrätsel und ein optionaler Höhenwagen.
+      ground("rail-g3", 3085, 595, 980),
+      ground("rail-g4", 4205, 620, 760),
+      // 3. Talstrecke: schneller, aber weiterhin gut lesbarer Rhythmus.
+      ground("rail-g5", 5100, 600, 920),
+      ground("rail-g6", 6155, 615, 920),
+      // 4. Zieldepot: ein letzter Höhenweg vor dem Tor.
+      ground("rail-g7", 7210, 590, 840),
+
+      ledge("rail-start-1", 320, 505, 180, "wood"),
+      ledge("rail-start-2", 565, 415, 190, "train", { axis: "x", range: 58, speed: .52, phase: .4 }),
+      ledge("rail-gap-car", 856, 510, 104, "train", { axis: "x", range: 32, speed: .76, phase: 1.2 }),
+
+      ledge("rail-dash-1", 1165, 470, 250, "train", { axis: "x", range: 88, speed: .48, phase: .8 }),
+      ledge("rail-dash-2", 1510, 370, 180, "wood"),
+      ledge("rail-dash-3", 1745, 460, 170, "train", { axis: "y", range: 32, speed: .66, phase: 2.1 }),
+
+      ledge("rail-lookout-1", 2250, 500, 180, "stone"),
+      ledge("rail-lookout-2", 2470, 400, 185, "train", { axis: "y", range: 30, speed: .62, phase: .9 }),
+      ledge("rail-lookout-3", 2700, 295, 220, "wood"),
+      ledge("rail-lookout-down", 2880, 430, 145, "stone"),
+
+      ledge("rail-switch-1", 3270, 465, 190, "wood"),
+      ledge("rail-switch-2", 3485, 375, 180, "train", { axis: "x", range: 58, speed: .54, phase: 2.5 }),
+      ledge("rail-switch-3", 3950, 455, 165, "wood"),
+
+      ledge("rail-valley-1", 4350, 495, 185, "stone"),
+      ledge("rail-valley-2", 4600, 390, 205, "train", { axis: "x", range: 76, speed: .5, phase: .6 }),
+      ledge("rail-valley-3", 4860, 500, 150, "wood"),
+      ledge("rail-tunnel-1", 5270, 465, 220, "train", { axis: "x", range: 82, speed: .46, phase: 1.7 }),
+      ledge("rail-tunnel-2", 5545, 365, 175, "wood"),
+      ledge("rail-tunnel-3", 5785, 460, 165, "stone"),
+
+      ledge("rail-final-1", 6315, 475, 190, "wood"),
+      ledge("rail-final-2", 6575, 365, 205, "train", { axis: "y", range: 36, speed: .58, phase: 2.7 }),
+      ledge("rail-final-3", 6850, 455, 175, "stone"),
+      ledge("rail-depot-1", 7360, 445, 185, "wood"),
+      ledge("rail-depot-2", 7605, 350, 195, "train", { axis: "x", range: 44, speed: .48, phase: .1 }),
+    ];
+
+    const crystalPositions = [
+      [205, 555], [430, 440], [660, 350], [880, 548],
+      [1120, 545], [1240, 415], [1375, 405], [1585, 320], [1810, 410], [1920, 540],
+      [2220, 552], [2340, 430], [2555, 330], [2745, 220], [2835, 220], [2945, 550],
+      [3200, 520], [3420, 405], [3590, 315], [3800, 540], [4005, 385],
+      [4295, 555], [4450, 430], [4700, 320], [4930, 540], [5200, 535],
+      [5390, 395], [5625, 295], [5880, 400], [5980, 535],
+      [6250, 545], [6440, 405], [6680, 300], [6940, 395], [7160, 545],
+      [7390, 370], [7700, 275],
+    ];
+    const collectibles = crystalPositions.map(([x, y], index) => ({
+      id: `rail-c-${index}`, x, y, collected: false, phase: index * .57,
+    }));
+
+    const level = {
+      ...meta,
+      index: 4,
+      worldWidth,
+      platforms,
+      collectibles,
+      hazards: [
+        { x: 1810, y: 570, baseX: 1810, r: 24, range: 58, speed: .72, phase: .4 },
+        { x: 2775, y: 586, baseX: 2775, r: 24, range: 54, speed: .78, phase: 1.6 },
+        { x: 4810, y: 586, baseX: 4810, r: 25, range: 66, speed: .84, phase: 2.3 },
+        { x: 6040, y: 570, baseX: 6040, r: 24, range: 60, speed: .8, phase: .8 },
+      ],
+      springs: [
+        { x: 1860, y: 587, w: 54, h: 18 },
+        { x: 2890, y: 602, w: 54, h: 18 },
+        { x: 4940, y: 602, w: 54, h: 18 },
+        { x: 6970, y: 597, w: 54, h: 18 },
+      ],
+      goal: { x: 7900, y: 474, w: 72, h: 116 },
+      checkpoints: [
+        { x: 2025, y: 534, active: false, label: "Haltepunkt Waldkante" },
+        { x: 5060, y: 514, active: false, label: "Weichenhof" },
+      ],
+      checkpoint: { x: 2025, y: 534, active: false, label: "Haltepunkt Waldkante" },
+      start: { x: 92, y: 522 },
+      collected: 0,
+      mechanic: "Schnelle Wagen, ein Höhenweg und ein Weichensignal",
+      currents: [{ x: 5170, w: 700, push: 185 }],
+      windZones: [],
+      handcrafted: true,
+      railAdventure: true,
+      railBoostZones: [{ x: 5170, y: 600, w: 700 }],
+      puzzleKind: "railSignal",
+      puzzleAnchorIndex: 3,
+      secretAnchorId: "rail-lookout-3",
+      hints: [
+        { x: 430, y: 620, text: "WAGEN MITNEHMEN – DANN HOCHSPRINGEN" },
+        { x: 2765, y: 620, text: "HÖHENWEG: SELTENER FUND & GEHEIMGANG" },
+        { x: 3605, y: 595, text: "WEICHE: DAS ROTE SIGNAL BERÜHREN" },
+        { x: 6460, y: 615, text: "SCHNELLE TALSTRECKE – FEDERN NUTZEN" },
+      ],
+      decorations: [],
+    };
+
+    addPuzzleChallenge(level);
+    addNextStageFeatures(level);
+    const regional = REGIONAL_ITEMS.rail;
+    level.items.push({
+      id: "rail-master-ticket", x: 3875, y: 386, name: "Goldene Weichenkarte", type: "ticket", color: "#efc45c", rare: true,
+      collected: game.foundItems.has(`${level.index}:rail-master-ticket`),
+    });
+    level.lifePickups.push({ id: "rail-life-lookout", x: 2810, y: 230, collected: false, phase: 3.8 });
+    level.lifePickups.push({ id: "rail-life-depot", x: 7700, y: 286, collected: false, phase: 5.2 });
+    level.items.push({
+      id: "rail-depot-ticket", x: 7485, y: 398, name: regional.name, type: regional.type, color: regional.color,
+      collected: game.foundItems.has(`${level.index}:rail-depot-ticket`),
+    });
+    removeGoalApproachCollectibles(level);
+    return level;
+  }
+
   function createFloodedMineLevel() {
     const index = LEVELS.findIndex((entry) => entry.underwater);
     const meta = LEVELS[index];
@@ -678,6 +814,7 @@
       removeGoalApproachCollectibles(seiffen);
       return seiffen;
     }
+    if (index === 4) return createBimmelbahnAdventureLevel();
     const rng = seededRandom(9103 + index * 719);
     const worldWidth = 8600 + index * 280;
     const platforms = [];
@@ -850,10 +987,13 @@
     const grounds = level.platforms.filter((platform) => platform.ground);
     if (grounds.length < 3) return;
 
-    const kind = level.mood === "solar"
-      ? PUZZLE_KINDS.find((entry) => entry.id === "solarRelay")
-      : PUZZLE_KINDS[level.index % PUZZLE_KINDS.length];
-    const anchorIndex = Math.max(1, Math.min(grounds.length - 2, Math.floor(grounds.length * .54)));
+    const kind = level.puzzleKind
+      ? PUZZLE_KINDS.find((entry) => entry.id === level.puzzleKind)
+      : level.mood === "solar"
+        ? PUZZLE_KINDS.find((entry) => entry.id === "solarRelay")
+        : PUZZLE_KINDS[level.index % PUZZLE_KINDS.length];
+    const requestedAnchor = Number.isFinite(level.puzzleAnchorIndex) ? level.puzzleAnchorIndex : Math.floor(grounds.length * .54);
+    const anchorIndex = Math.max(1, Math.min(grounds.length - 2, requestedAnchor));
     const anchor = grounds[anchorIndex];
     const baseX = anchor.x + Math.min(anchor.w * .52, Math.max(170, anchor.w - 230));
     const bridgeY = anchor.y - 136;
@@ -1008,8 +1148,10 @@
     const itemMeta = REGIONAL_ITEMS[level.mood] || REGIONAL_ITEMS.forest;
     const grounds = level.platforms.filter((platform) => platform.ground);
     const ledges = level.platforms.filter((platform) => !platform.ground && !platform.moving && !platform.puzzleBridge && platform.w >= 135);
-    const entranceAnchor = level.handcrafted
-      ? level.platforms.find((platform) => platform.id === "s-secret-3")
+    const entranceAnchor = level.secretAnchorId
+      ? level.platforms.find((platform) => platform.id === level.secretAnchorId)
+      : level.handcrafted
+        ? level.platforms.find((platform) => platform.id === "s-secret-3")
       : ledges
         .filter((platform) => platform.x > level.worldWidth * .28 && platform.x < level.worldWidth * .72)
         .sort((a, b) => a.y - b.y)[0] || ledges[Math.floor(ledges.length / 2)];
@@ -2139,7 +2281,7 @@
     for (const hazard of level.hazards) {
       if (!hazard.collected && hazard.x >= left && hazard.x <= right) drawHazard(hazard, level);
     }
-    if (level.handcrafted) drawLevelHints(level);
+    if (level.hints?.length) drawLevelHints(level);
     if (level.mood === "mine" || level.backdrop === "mine") drawCaveDarkness(level);
     drawParticles();
     if (game.player) drawPlayer(game.player);
@@ -2262,7 +2404,8 @@
       return;
     }
     if (level.isBonusRoom) drawBonusRoomDecor(level, visibleWidth);
-    if (level.handcrafted) drawSeiffenDecorations(level, visibleWidth);
+    if (level.decorations?.length) drawSeiffenDecorations(level, visibleWidth);
+    if (level.railAdventure) drawRailAdventureDecorations(level, visibleWidth);
     const start = Math.max(0, Math.floor(game.cameraX / 340) - 1);
     const end = Math.ceil((game.cameraX + visibleWidth) / 340) + 1;
     for (let i = start; i <= end; i += 1) {
@@ -2447,6 +2590,57 @@
     for (const hint of level.hints) {
       if (hint.x > game.cameraX - 220 && hint.x < game.cameraX + visibleWidth + 220) drawHintBoard(hint);
     }
+  }
+
+  function drawRailAdventureDecorations(level, visibleWidth) {
+    const markers = [
+      { x: 720, y: 620, label: "START" },
+      { x: 2025, y: 620, label: "HALT" },
+      { x: 3615, y: 595, label: "WEICHE" },
+      { x: 5060, y: 620, label: "TALFAHRT" },
+      { x: 7840, y: 590, label: "DEPOT" },
+    ];
+    for (const marker of markers) {
+      if (marker.x < game.cameraX - 180 || marker.x > game.cameraX + visibleWidth + 180) continue;
+      drawRailRouteMarker(marker.x, marker.y, marker.label);
+    }
+    for (const zone of level.railBoostZones || []) {
+      if (zone.x + zone.w < game.cameraX - 120 || zone.x > game.cameraX + visibleWidth + 120) continue;
+      ctx.save();
+      ctx.globalAlpha = .32;
+      ctx.strokeStyle = "#d6ecf2";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      for (let row = 0; row < 3; row += 1) {
+        const y = zone.y - 58 - row * 22;
+        const offset = wrap(game.time * 185 + row * 87, 0, 96);
+        for (let x = zone.x - 80 + offset; x < zone.x + zone.w; x += 96) {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.quadraticCurveTo(x + 18, y - 6, x + 43, y);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawRailRouteMarker(x, y, label) {
+    ctx.save();
+    ctx.fillStyle = "#5b4535";
+    ctx.fillRect(x - 3, y - 75, 6, 75);
+    ctx.fillStyle = "#255f86";
+    ctx.beginPath(); ctx.roundRect(x - 42, y - 93, 84, 31, 7); ctx.fill();
+    ctx.strokeStyle = "#dcecf0";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#f5f0d9";
+    ctx.font = "900 9px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x, y - 73);
+    ctx.fillStyle = "#f5d568";
+    ctx.beginPath(); ctx.arc(x - 29, y - 77, 3.5, 0, TAU); ctx.fill();
+    ctx.restore();
   }
 
   function drawSeiffenDecorations(level, visibleWidth) {
@@ -4605,6 +4799,8 @@
     if (itemId === "main-a" || itemId === "main-b" || itemId === "bonus-a") return { ...regional, where: level.short };
     if (itemId === "bonus-b") return { name: "Glückstaler", type: "coin", color: "#e0b54d", where: `${level.short} · Geheimweg` };
     if (itemId === "bonus-c") return { name: "Altes Grubenlicht", type: "lantern", color: "#f2a83d", where: `${level.short} · Geheimweg` };
+    if (itemId === "rail-master-ticket") return { name: "Goldene Weichenkarte", type: "ticket", color: "#efc45c", where: `${level.short} · Signalweg` };
+    if (itemId === "rail-depot-ticket") return { name: "Bimmelbahn-Fahrkarte", type: "ticket", color: "#b9514d", where: `${level.short} · Zieldepot` };
     if (itemId === "tauch-a") return { ...REGIONAL_ITEMS.underwater, where: level.short };
     if (itemId === "tauch-b") return { name: "Alte Lorenplakette", type: "badge", color: "#d0a55d", where: level.short };
     if (itemId === "tauch-c") return { name: "Türkiser Stollenkristall", type: "star", color: "#58e6df", where: level.short };
