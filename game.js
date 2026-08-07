@@ -2077,6 +2077,7 @@
     const level = game.level || createLevel(game.levelIndex);
     drawBackground(level);
     drawWorld(level);
+    drawForegroundParallax(level, visibleWidth);
     drawForegroundDepth(level);
     ctx.restore();
   }
@@ -2089,8 +2090,10 @@
 
     if (backdrop.complete && backdrop.naturalWidth) {
       drawGeneratedBackdrop(backdrop, level, visibleWidth);
+      drawAnimatedMidground(level, visibleWidth);
       if (level.underwater) drawUnderwaterAtmosphere(level);
       else drawAtmosphere(level, night);
+      drawWeatherLayer(level, visibleWidth);
       return;
     }
 
@@ -2116,10 +2119,12 @@
     drawRegionalLandmark(level);
     drawMountainLayer(level, 0.18, 500, night ? "#344c52" : "#567f68", 125, 2);
     drawForestLayer(level, 0.28, 545, night ? "#253e3c" : "#345f49");
+    drawAnimatedMidground(level, visibleWidth);
     ctx.fillStyle = night ? "rgba(26,44,55,.24)" : "rgba(255,248,225,.12)";
     ctx.fillRect(0, 0, visibleWidth, H);
     if (level.underwater) drawUnderwaterAtmosphere(level);
     else drawAtmosphere(level, night);
+    drawWeatherLayer(level, visibleWidth);
   }
 
   function drawUnderwaterAtmosphere(level) {
@@ -2219,6 +2224,332 @@
       ctx.beginPath();
       ctx.ellipse(x + 70, H - 36, 100, 85 + (i % 2) * 24, 0, 0, TAU);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawAnimatedMidground(level, visibleWidth) {
+    if (level.underwater) {
+      drawUnderwaterMidground(level, visibleWidth);
+      return;
+    }
+    const midX = (anchor, speed = .24, padding = 280) => wrap(anchor - game.cameraX * speed, -padding, visibleWidth + padding);
+    ctx.save();
+    ctx.globalAlpha = level.mood === "night" ? .52 : .42;
+
+    if (level.mood === "river") {
+      const x = midX(visibleWidth * .72, .27, 320);
+      drawMill(x, 520, .48);
+      drawWaterReflection(x + 31, 529, 86, "#bdeef0");
+    } else if (level.mood === "rail") {
+      const travel = wrap(game.time * 34 - game.cameraX * .23, -360, visibleWidth + 420);
+      drawMidgroundRail(travel, 516, visibleWidth);
+      drawModernTram(travel, 507, .58);
+    } else if (["summit", "castle", "rocks"].includes(level.mood)) {
+      drawWavingFlag(midX(visibleWidth * .27, .21), 446, .62, level.accent);
+      drawWavingFlag(midX(visibleWidth * .78 + 390, .29), 495, .46, level.mood === "summit" ? "#d75a55" : "#e4b34d");
+    } else if (level.mood === "mine") {
+      drawTurningMineWheel(midX(visibleWidth * .75, .2), 470, .68);
+    } else if (level.mood === "night") {
+      drawWarmWindowLayer(level, visibleWidth, .23, 468);
+      drawSchwibbogenGlow(midX(visibleWidth * .72, .18), 430, .56);
+    } else if (level.mood === "solar") {
+      drawSolarLightSweep(midX(visibleWidth * .64, .2), 470, 1.05);
+    } else if (level.mood === "village" || level.mood === "rooftops") {
+      drawWarmWindowLayer(level, visibleWidth, .26, 486);
+    } else {
+      drawSwayingTreeLine(level, visibleWidth, .25, 525);
+    }
+
+    drawSolarGlints(level, visibleWidth);
+    ctx.restore();
+  }
+
+  function drawMidgroundRail(tramX, y, visibleWidth) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(71,78,75,.72)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-30, y + 2); ctx.lineTo(visibleWidth + 30, y + 2);
+    ctx.moveTo(-30, y + 10); ctx.lineTo(visibleWidth + 30, y + 10);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(83,62,43,.5)";
+    ctx.lineWidth = 3;
+    for (let x = -20 - (game.cameraX * .23 % 25); x < visibleWidth + 30; x += 25) {
+      ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x, y + 14); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(74,91,88,.45)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(-20, y - 88); ctx.quadraticCurveTo(tramX, y - 96, visibleWidth + 20, y - 84); ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawModernTram(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    const body = ctx.createLinearGradient(0, -72, 0, 4);
+    body.addColorStop(0, "#e9f2f4");
+    body.addColorStop(.54, "#d8e6e9");
+    body.addColorStop(.56, "#1686c5");
+    body.addColorStop(1, "#0869aa");
+    ctx.shadowColor = "rgba(19,42,45,.26)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 7;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(-132, -65);
+    ctx.quadraticCurveTo(-123, -81, -103, -82);
+    ctx.lineTo(106, -82);
+    ctx.quadraticCurveTo(130, -77, 137, -54);
+    ctx.lineTo(137, -5);
+    ctx.quadraticCurveTo(130, 5, 116, 7);
+    ctx.lineTo(-117, 7);
+    ctx.quadraticCurveTo(-135, 2, -136, -16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.fillStyle = "#263b45";
+    ctx.beginPath();
+    ctx.moveTo(-112, -67); ctx.quadraticCurveTo(-101, -75, -88, -75); ctx.lineTo(-55, -75); ctx.lineTo(-52, -39); ctx.lineTo(-116, -39); ctx.closePath(); ctx.fill();
+    for (let wx = -43; wx <= 91; wx += 34) {
+      ctx.fillStyle = "#29444e";
+      ctx.beginPath(); ctx.roundRect(wx, -73, 27, 32, 4); ctx.fill();
+      ctx.fillStyle = "rgba(170,225,235,.26)";
+      ctx.fillRect(wx + 3, -69, 6, 23);
+    }
+    ctx.fillStyle = "#f5fbf8";
+    ctx.beginPath(); ctx.roundRect(-20, -31, 66, 22, 4); ctx.fill();
+    ctx.fillStyle = "#0a7bc0";
+    ctx.font = "900 17px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("CVAG", 13, -14);
+
+    ctx.strokeStyle = "#4a5658";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-10, -82); ctx.lineTo(9, -109); ctx.lineTo(35, -82);
+    ctx.moveTo(9, -109); ctx.lineTo(43, -109);
+    ctx.stroke();
+    ctx.fillStyle = "#233033";
+    for (const wheelX of [-88, 91]) {
+      ctx.beginPath(); ctx.arc(wheelX, 7, 14, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#87969a"; ctx.beginPath(); ctx.arc(wheelX, 7, 6, 0, TAU); ctx.fill();
+      ctx.fillStyle = "#233033";
+    }
+    ctx.fillStyle = "#fff4b0";
+    ctx.shadowColor = "#fff0a0";
+    ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(-119, -24, 4, 0, TAU); ctx.arc(125, -24, 4, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawWavingFlag(x, y, scale, color) {
+    const wave = Math.sin(game.time * 3.1 + x * .013);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.strokeStyle = "rgba(57,48,39,.82)";
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -128); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(3, -124);
+    ctx.bezierCurveTo(29, -137 + wave * 6, 54, -108 - wave * 5, 82, -121 + wave * 7);
+    ctx.lineTo(82, -91 + wave * 4);
+    ctx.bezierCurveTo(54, -80 - wave * 5, 28, -108 + wave * 6, 3, -96);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.24)";
+    ctx.beginPath(); ctx.moveTo(7, -119); ctx.bezierCurveTo(30, -127 + wave * 5, 54, -101 - wave * 4, 76, -114 + wave * 5); ctx.lineTo(76, -107); ctx.bezierCurveTo(52, -95, 29, -118, 7, -110); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawTurningMineWheel(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.strokeStyle = "rgba(66,75,73,.86)";
+    ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(-55, 0); ctx.lineTo(-28, -108); ctx.lineTo(28, -108); ctx.lineTo(55, 0); ctx.stroke();
+    ctx.translate(0, -118);
+    ctx.rotate(game.time * .32);
+    ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(0, 0, 34, 0, TAU); ctx.stroke();
+    for (let i = 0; i < 8; i += 1) {
+      const angle = i * TAU / 8;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * 34, Math.sin(angle) * 34); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawWarmWindowLayer(level, visibleWidth, parallax, baseY) {
+    for (let i = 0; i < 7; i += 1) {
+      const x = wrap(i * 210 + 80 - game.cameraX * parallax, -80, visibleWidth + 100);
+      const pulse = .5 + Math.sin(game.time * 1.7 + i * 1.4) * .14;
+      ctx.globalAlpha = pulse;
+      ctx.shadowColor = "#ffd36c";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = i % 3 === 0 ? "#ffe49a" : "#f2bd5a";
+      ctx.beginPath(); ctx.roundRect(x, baseY - (i % 2) * 32, 14, 22, 3); ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    ctx.globalAlpha = level.mood === "night" ? .52 : .42;
+  }
+
+  function drawSchwibbogenGlow(x, y, scale) {
+    ctx.save();
+    ctx.globalAlpha = .58 + Math.sin(game.time * 1.8) * .08;
+    drawSchwibbogen(x, y, scale);
+    ctx.restore();
+  }
+
+  function drawSwayingTreeLine(level, visibleWidth, parallax, baseY) {
+    for (let i = -1; i < Math.ceil(visibleWidth / 190) + 2; i += 1) {
+      const x = wrap(i * 190 + 40 - game.cameraX * parallax, -130, visibleWidth + 150);
+      const sway = Math.sin(game.time * 1.1 + i * .8 + level.index) * 4;
+      ctx.save();
+      ctx.translate(x, baseY);
+      ctx.rotate(sway * .003);
+      drawSpruce(0, 0, 88 + i % 3 * 13, "#274c3c", .72);
+      ctx.restore();
+    }
+  }
+
+  function drawSolarLightSweep(x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = "rgba(23,89,121,.6)";
+    ctx.beginPath(); ctx.moveTo(-92, 0); ctx.lineTo(-72, -42); ctx.lineTo(82, -42); ctx.lineTo(98, 0); ctx.closePath(); ctx.fill();
+    const sweep = wrap(game.time * 38, -95, 95);
+    const glint = ctx.createLinearGradient(sweep - 28, 0, sweep + 28, 0);
+    glint.addColorStop(0, "rgba(255,250,190,0)");
+    glint.addColorStop(.5, "rgba(255,250,190,.7)");
+    glint.addColorStop(1, "rgba(255,250,190,0)");
+    ctx.fillStyle = glint;
+    ctx.beginPath(); ctx.moveTo(-92, -1); ctx.lineTo(-72, -41); ctx.lineTo(82, -41); ctx.lineTo(97, -1); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawSolarGlints(level, visibleWidth) {
+    if (level.underwater || level.mood === "mine" || level.mood === "night") return;
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < 4; i += 1) {
+      const x = wrap(170 + i * 330 - game.cameraX * (.12 + i * .012), -30, visibleWidth + 40);
+      const y = 308 + (i % 2) * 82;
+      const pulse = Math.max(0, Math.sin(game.time * 1.45 + i * 1.8));
+      ctx.globalAlpha = pulse * .34;
+      ctx.strokeStyle = "#fff6bb";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x - 8, y); ctx.lineTo(x + 8, y); ctx.moveTo(x, y - 8); ctx.lineTo(x, y + 8); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawWaterReflection(x, y, width, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      const ripple = Math.sin(game.time * 2.4 + i) * 9;
+      ctx.globalAlpha = .2 + i * .05;
+      ctx.beginPath(); ctx.ellipse(x + ripple, y + i * 7, width * (.36 + i * .11), 3, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawUnderwaterMidground(level, visibleWidth) {
+    ctx.save();
+    ctx.globalAlpha = .24;
+    ctx.strokeStyle = "#68c8c2";
+    ctx.lineWidth = 8;
+    ctx.lineCap = "round";
+    const shift = -(game.cameraX * .24 % 250);
+    for (let i = -1; i < Math.ceil(visibleWidth / 250) + 2; i += 1) {
+      const x = shift + i * 250 + 80;
+      const sway = Math.sin(game.time * .85 + i) * 20;
+      ctx.beginPath();
+      ctx.moveTo(x, 590);
+      ctx.quadraticCurveTo(x - 12, 500, x + sway, 432 - (i % 2) * 35);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawWeatherLayer(level, visibleWidth) {
+    ctx.save();
+    if (level.underwater) {
+      ctx.globalAlpha = .18;
+      ctx.fillStyle = "#d7faf5";
+      for (let i = 0; i < 26; i += 1) {
+        const x = wrap(hash(i * 41 + level.index) * visibleWidth - game.cameraX * .035 + game.time * (3 + i % 4), -12, visibleWidth + 12);
+        const y = wrap(80 + hash(i * 67) * 570 - game.time * (4 + i % 3), 45, 670);
+        ctx.beginPath(); ctx.arc(x, y, 1 + i % 2, 0, TAU); ctx.fill();
+      }
+    } else if (level.mood === "summit" || level.mood === "night") {
+      ctx.fillStyle = level.mood === "night" ? "#f6e7bd" : "#edf6f2";
+      for (let i = 0; i < 24; i += 1) {
+        const speed = 12 + i % 5 * 4;
+        const x = wrap(hash(i * 73 + level.index) * visibleWidth + game.time * speed - game.cameraX * .018, -20, visibleWidth + 20);
+        const y = wrap(hash(i * 101) * H + game.time * (8 + i % 4 * 3), 35, H - 48);
+        ctx.globalAlpha = .14 + (i % 3) * .05;
+        ctx.beginPath(); ctx.arc(x, y, 1.5 + i % 3 * .6, 0, TAU); ctx.fill();
+      }
+    } else if (level.mood === "river") {
+      ctx.strokeStyle = "#d6eef0";
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 18; i += 1) {
+        const x = wrap(hash(i * 83) * visibleWidth - game.cameraX * .025 - game.time * 18, -20, visibleWidth + 20);
+        const y = wrap(hash(i * 47) * 520 + game.time * 42, 70, 590);
+        ctx.globalAlpha = .1 + (i % 3) * .035;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 7, y + 18); ctx.stroke();
+      }
+    } else if (["forest", "village", "rooftops", "rocks", "castle"].includes(level.mood)) {
+      ctx.fillStyle = "#e5c56d";
+      for (let i = 0; i < 15; i += 1) {
+        const x = wrap(hash(i * 97 + level.index) * visibleWidth + game.time * (5 + i % 3), -15, visibleWidth + 15);
+        const y = 130 + hash(i * 53) * 420 + Math.sin(game.time * .8 + i) * 18;
+        ctx.globalAlpha = .08 + (i % 4) * .025;
+        ctx.beginPath(); ctx.ellipse(x, y, 2.8, 1.3, game.time + i, 0, TAU); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawForegroundParallax(level, visibleWidth) {
+    ctx.save();
+    ctx.globalAlpha = level.underwater ? .18 : level.mood === "mine" ? .2 : .13;
+    ctx.filter = "blur(2.5px)";
+    const shift = -(game.cameraX * 1.14 % 230);
+    const color = level.underwater ? "#123f43" : level.mood === "mine" ? "#172422" : level.mood === "night" ? "#17322f" : "#204733";
+    ctx.fillStyle = color;
+    for (let i = -2; i < Math.ceil(visibleWidth / 230) + 3; i += 1) {
+      const x = shift + i * 230 + 40;
+      const width = 70 + hash(i * 37 + level.index) * 75;
+      const height = 28 + hash(i * 61 + level.index) * 42;
+      ctx.beginPath(); ctx.ellipse(x, H + 5, width, height, 0, 0, TAU); ctx.fill();
+      if (!level.underwater && level.mood !== "mine") {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(x, H - 4);
+        ctx.quadraticCurveTo(x - 8, H - 48, x + Math.sin(game.time * 1.4 + i) * 9, H - 78);
+        ctx.stroke();
+      }
+    }
+    if (level.mood === "mine" || level.underwater) {
+      ctx.globalAlpha *= .8;
+      for (const side of [-1, 1]) {
+        const edgeX = side < 0 ? -22 : visibleWidth + 22;
+        ctx.beginPath();
+        ctx.ellipse(edgeX, 250, 76, 230, side * .12, 0, TAU);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }
