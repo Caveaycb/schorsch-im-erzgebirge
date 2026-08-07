@@ -179,9 +179,9 @@
     },
     {
       name: "Verlassenes Zugdepot", mood: "rail", backdrop: "day", special: "train-depot",
-      mechanic: "Rangierende Bimmelbahn-Wagen", worldWidth: 2720, groundType: "earth", ledgeType: "train",
+      mechanic: "Bewegliche Holzstege im alten Zugdepot", worldWidth: 2720, groundType: "earth", ledgeType: "wood",
       grounds: [[0,620,360],[620,630,260],[1110,610,310],[1660,635,270],[2170,610,550]],
-      ledges: [[290,500,210,"train",{axis:"x",range:85,speed:.42}],[550,395,145,"wood"],[780,300,205,"train",{axis:"x",range:110,speed:.38}],[1040,440,145,"wood"],[1280,340,210,"train",{axis:"x",range:100,speed:.46}],[1550,250,145,"wood"],[1800,420,210,"train",{axis:"x",range:95,speed:.4}],[2070,330,150,"wood"],[2350,455,220,"train",{axis:"x",range:70,speed:.45}]],
+      ledges: [[290,500,210,"wood",{axis:"x",range:85,speed:.42}],[550,395,145,"wood"],[780,300,205,"stone",{axis:"x",range:110,speed:.38}],[1040,440,145,"wood"],[1280,340,210,"wood",{axis:"x",range:100,speed:.46}],[1550,250,145,"wood"],[1800,420,210,"stone",{axis:"x",range:95,speed:.4}],[2070,330,150,"wood"],[2350,455,220,"wood",{axis:"x",range:70,speed:.45}]],
       springs: [[300,602],[1295,592]], hazards: [[735,596,42,.82],[2290,576,75,.9]],
     },
     {
@@ -954,7 +954,7 @@
   }
 
   function levelPlatformType(levelIndex, segmentIndex, ledgeIndex) {
-    if (LEVELS[levelIndex]?.mood === "rail" && (segmentIndex + ledgeIndex) % 2 === 0) return "train";
+    if (LEVELS[levelIndex]?.mood === "rail") return (segmentIndex + ledgeIndex) % 2 === 0 ? "wood" : "stone";
     if (LEVELS[levelIndex]?.mood === "rooftops" || LEVELS[levelIndex]?.mood === "night") return "roof";
     if (LEVELS[levelIndex]?.mood === "mine" || LEVELS[levelIndex]?.mood === "rocks") return "stone";
     return (segmentIndex + ledgeIndex + levelIndex) % 3 === 0 ? "wood" : "stone";
@@ -1099,7 +1099,7 @@
       village: "Fachwerk-Fenster und Holzfiguren",
       mine: "Kristalllicht zeigt den Weg",
       river: "Sanfte Wasserströmungen",
-      rail: "Fahrende Bimmelbahn-Plattformen",
+      rail: "Bewegliche Holz- und Steinplattformen",
       rooftops: "Schieferdächer und Schornsteine",
       night: "Laternen weisen durch die Nacht",
       rocks: "Granit-Stufen zum Klettern",
@@ -1114,12 +1114,12 @@
       for (let i = 1; i < Math.min(grounds.length, 6); i += 2) {
         const ground = grounds[i];
         level.platforms.push({
-          id: `train-${i}`,
+          id: `rail-platform-${i}`,
           x: ground.x + 55,
           y: ground.y - 145,
           baseX: ground.x + 55,
           baseY: ground.y - 145,
-          w: Math.min(245, ground.w - 70), h: 30, ground: false, type: "train",
+          w: Math.min(245, ground.w - 70), h: 30, ground: false, type: i % 4 === 1 ? "wood" : "stone",
           moving: true, moveRange: Math.min(125, ground.w * .2), moveSpeed: .36 + i * .025, moveAxis: "x", phase: i * .85,
         });
       }
