@@ -325,7 +325,7 @@ kbd { min-width: 28px; padding: 6px 7px; border: 1px solid #d7d1c0; border-botto
 .outfit-category-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .outfit-category-heading h3 { margin: 0; font-family: Georgia, serif; font-size: 22px; }
 .outfit-category-heading small { color: var(--ink-soft); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.outfit-category-grid { display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); gap: 13px; }
+.outfit-category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 13px; }
 .outfit-card { min-width: 0; display: flex; flex-direction: column; padding: 18px; border: 1px solid #e0dacb; border-radius: 20px; background: #f7f4e9; }
 .outfit-card.is-equipped { outline: 3px solid var(--teal); background: #eef7ee; }
 .outfit-card-visual { height: 105px; display: grid; place-items: center; margin-bottom: 14px; border-radius: 16px; color: white; background: var(--outfit-bg, #456956); font-family: Georgia, serif; font-size: 56px; text-shadow: 0 4px rgba(0,0,0,.12); overflow: hidden; }

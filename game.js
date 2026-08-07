@@ -61,32 +61,23 @@
     { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "level-12", bonus: true },
   ];
 
-  const OUTFIT_CATEGORIES = {
-    jacket: "Jacken & Umhänge",
-    head: "Mützen & Kopfbedeckungen",
-    shoes: "Schuhe",
-    accessory: "Wanderzubehör",
+  const ITEM_CATEGORIES = {
+    item: "Items",
   };
 
-  const OUTFITS = [
-    { id: "cape", category: "jacket", style: "cape", name: "Bergmanns-Umhang", price: 8, mark: "⌁", color: "#9f4054", description: "Ein beeriger Umhang, der im Bergwind flattert." },
-    { id: "forestJacket", category: "jacket", style: "jacket", name: "Fichten-Jacke", price: 11, mark: "▤", color: "#39705a", description: "Eine grüne Wanderjacke mit goldenen Knöpfen." },
-    { id: "minerJacket", category: "jacket", style: "jacket", name: "Steiger-Jacke", price: 14, mark: "◆", color: "#334f67", description: "Dunkelblau mit hellem Bergmannskragen." },
-    { id: "winterJacket", category: "jacket", style: "jacket", name: "Fichtelberg-Anorak", price: 18, mark: "▥", color: "#b84d57", description: "Eine warme rote Jacke für windige Gipfel." },
-
-    { id: "hat", category: "head", style: "cap", name: "Gipfel-Mütze", price: 10, mark: "⌒", color: "#3f6954", description: "Grün mit einem sonnengelben Band." },
-    { id: "redBeanie", category: "head", style: "beanie", name: "Bimmelbahn-Beanie", price: 12, mark: "●", color: "#b94b55", description: "Eine rote Strickmütze mit Bommel." },
-    { id: "minerCap", category: "head", style: "miner", name: "Gruben-Kappe", price: 15, mark: "◉", color: "#38556b", description: "Eine Kappe mit freundlich leuchtender Stirnlampe." },
-    { id: "winterHat", category: "head", style: "winter", name: "Schneeflocken-Mütze", price: 17, mark: "✦", color: "#4b7990", description: "Blau, weich und mit hellen Ohrenklappen." },
-
-    { id: "hikingBoots", category: "shoes", style: "boots", name: "Wanderstiefel", price: 9, mark: "▰", color: "#755039", description: "Feste braune Schuhe für Fels und Holzstege." },
-    { id: "redSneakers", category: "shoes", style: "sneakers", name: "Flitzer-Schuhe", price: 13, mark: "≫", color: "#c24f55", description: "Rote Turnschuhe mit hellen Sohlen." },
-    { id: "snowBoots", category: "shoes", style: "snow", name: "Gipfelstiefel", price: 16, mark: "▣", color: "#55778a", description: "Blaue Winterstiefel mit weißem Rand." },
-
-    { id: "cane", category: "accessory", style: "cane", name: "Erzgebirgs-Gehstock", price: 12, mark: "♩", color: "#9b6b3d", description: "Ein geschnitzter Begleiter für große Wandertouren." },
-    { id: "lanternGear", category: "accessory", style: "lantern", name: "Kleine Grubenlaterne", price: 14, mark: "☼", color: "#d99534", description: "Leuchtet warm an Schorschs Seite." },
-    { id: "scarf", category: "accessory", style: "scarf", name: "Lichterbogen-Schal", price: 11, mark: "≈", color: "#c45260", description: "Ein weicher Schal, der beim Rennen nach hinten weht." },
+  const HAND_ITEMS = [
+    { id: "lanternGear", category: "item", style: "lantern", name: "Grubenlampe", price: 10, mark: "☼", color: "#d99534", description: "Eine traditionelle Lampe mit warmem Licht für dunkle Stollen." },
+    { id: "flashlight", category: "item", style: "flashlight", name: "Taschenlampe", price: 12, mark: "⌁", color: "#4f6875", description: "Eine handliche Lampe mit einem hellen Lichtkegel." },
+    { id: "cane", category: "item", style: "cane", name: "Wanderstock", price: 9, mark: "╱", color: "#9b6b3d", description: "Ein geschnitzter Holzstock für Schorschs Bergwanderungen." },
+    { id: "fiberCable", category: "item", style: "fiber", name: "Glasfaserkabel", price: 15, mark: "◎", color: "#20a8ce", description: "Eine leuchtend blaue Kabelrolle mit funkelndem Anschluss." },
+    { id: "solarLamp", category: "item", style: "solar", name: "Solar-Lampe", price: 17, mark: "▣", color: "#2c7894", description: "Eine tragbare Leuchte mit kleinem Solarmodul auf der Oberseite." },
   ];
+
+  const LEGACY_OUTFIT_REFUNDS = {
+    cape: 8, forestJacket: 11, minerJacket: 14, winterJacket: 18,
+    hat: 10, redBeanie: 12, minerCap: 15, winterHat: 17,
+    hikingBoots: 9, redSneakers: 13, snowBoots: 16, scarf: 11,
+  };
 
   const TALENTS = [
     { id: "highJump", name: "Federleicht", price: 12, mark: "↟", description: "Schorsch springt ein kleines Stück höher." },
@@ -289,8 +280,9 @@
     sound: storage.sound,
     wallet: Math.max(0, Number(storage.wallet) || 0),
     claimedSparks: new Set(Array.isArray(storage.claimedSparks) ? storage.claimedSparks : []),
-    ownedOutfits: new Set(Array.isArray(storage.ownedOutfits) ? storage.ownedOutfits : []),
-    equippedOutfits: new Set(Array.isArray(storage.equippedOutfits) ? storage.equippedOutfits : []),
+    ownedItems: new Set(storage.itemLoadoutSaved && Array.isArray(storage.ownedItems) ? storage.ownedItems : (Array.isArray(storage.ownedOutfits) ? storage.ownedOutfits : [])),
+    equippedItems: new Set(storage.itemLoadoutSaved && Array.isArray(storage.equippedItems) ? storage.equippedItems : (Array.isArray(storage.equippedOutfits) ? storage.equippedOutfits : [])),
+    itemOnlyMigrationDone: Boolean(storage.itemOnlyMigrationDone),
     ownedTalents: new Set(storedOwnedTalents),
     talents: new Set(storedEquippedTalents.slice(0, MAX_ACTIVE_TALENTS)),
     foundItems: new Set(Array.isArray(storage.foundItems) ? storage.foundItems : []),
@@ -329,6 +321,10 @@
       claimedSparks: [],
       ownedOutfits: [],
       equippedOutfits: [],
+      ownedItems: [],
+      equippedItems: [],
+      itemLoadoutSaved: false,
+      itemOnlyMigrationDone: false,
       talents: [],
       ownedTalents: [],
       equippedTalents: [],
@@ -351,8 +347,10 @@
       sound: game.sound,
       wallet: game.wallet,
       claimedSparks: [...game.claimedSparks],
-      ownedOutfits: [...game.ownedOutfits],
-      equippedOutfits: [...game.equippedOutfits],
+      ownedItems: [...game.ownedItems],
+      equippedItems: [...game.equippedItems],
+      itemLoadoutSaved: true,
+      itemOnlyMigrationDone: game.itemOnlyMigrationDone,
       talents: [...game.talents],
       ownedTalents: [...game.ownedTalents],
       equippedTalents: [...game.talents],
@@ -3847,47 +3845,44 @@
     }
   }
 
-  function equippedOutfit(category) {
-    return OUTFITS.find((outfit) => outfit.category === category && game.equippedOutfits.has(outfit.id)) || null;
+  function equippedItem() {
+    return HAND_ITEMS.find((item) => game.equippedItems.has(item.id)) || null;
   }
 
   const outfitVariantCache = new Map();
 
   function currentOutfitLoadout() {
     return {
-      jacket: equippedOutfit("jacket"),
-      head: equippedOutfit("head"),
-      shoes: equippedOutfit("shoes"),
-      accessory: equippedOutfit("accessory"),
+      jacket: null,
+      head: null,
+      shoes: null,
+      item: equippedItem(),
     };
   }
 
-  function singleOutfitLoadout(outfit) {
+  function singleOutfitLoadout(item) {
     return {
-      jacket: outfit.category === "jacket" ? outfit : null,
-      head: outfit.category === "head" ? outfit : null,
-      shoes: outfit.category === "shoes" ? outfit : null,
-      accessory: outfit.category === "accessory" ? outfit : null,
+      jacket: null,
+      head: null,
+      shoes: null,
+      item,
     };
   }
 
   function outfitVariantKey(loadout) {
-    return ["jacket", "head", "shoes", "accessory"].map((category) => loadout[category]?.id || "none").join("|");
+    return loadout.item?.id || "none";
   }
 
-  function drawTailoredOutfitBack(target, loadout, player, stride, speedRatio) {
-    if (loadout.jacket?.id === "cape") drawTailoredCape(target, player, speedRatio, loadout.jacket.color);
-    if (loadout.accessory?.id === "scarf") drawTailoredScarfTail(target, player, stride, speedRatio, loadout.accessory.color);
-  }
+  function drawTailoredOutfitBack() {}
 
   function drawTailoredOutfitFront(target, loadout, player, stride, speedRatio) {
-    if (loadout.jacket?.id === "cape") drawTailoredCapeCollar(target, loadout.jacket.color);
-    else if (loadout.jacket) drawTailoredJacket(target, loadout.jacket, player, stride, speedRatio);
-    if (loadout.shoes) drawTailoredShoes(target, loadout.shoes, player, stride, speedRatio);
-    if (loadout.head) drawTailoredHeadwear(target, loadout.head, player);
-    if (loadout.accessory?.id === "scarf") drawTailoredScarfKnot(target, loadout.accessory.color);
-    if (loadout.accessory?.id === "cane") drawTailoredCane(target, player, stride, speedRatio);
-    if (loadout.accessory?.id === "lanternGear") drawTailoredLantern(target, player, stride, speedRatio, loadout.accessory.color);
+    const item = loadout.item;
+    if (!item) return;
+    if (item.id === "cane") drawTailoredCane(target, player, stride, speedRatio);
+    if (item.id === "lanternGear") drawTailoredLantern(target, player, stride, speedRatio, item.color);
+    if (item.id === "flashlight") drawTailoredFlashlight(target, player, stride, speedRatio);
+    if (item.id === "fiberCable") drawTailoredFiberCable(target, player, stride, speedRatio);
+    if (item.id === "solarLamp") drawTailoredSolarLamp(target, player, stride, speedRatio);
   }
 
   function outfitArmPoses(player, stride, speedRatio) {
@@ -4247,6 +4242,88 @@
     target.shadowBlur = 0;
     target.strokeStyle = "#3d332a"; target.lineWidth = 1.2;
     target.beginPath(); target.moveTo(-5, 9); target.lineTo(5, 21); target.moveTo(5, 9); target.lineTo(-5, 21); target.stroke();
+    target.restore();
+    drawRunningGloveOn(target, hand.handX, hand.handY, hand.gloveRotation);
+  }
+
+  function drawTailoredFlashlight(target, player, stride, speedRatio) {
+    const hand = accessoryHandPose(player, stride, speedRatio);
+    const swing = player.state === "run" ? Math.sin(player.runCycle) * .13 : -.12;
+    target.save();
+    target.translate(hand.handX + 1, hand.handY + 1);
+    target.rotate(swing);
+    const beam = target.createLinearGradient(11, 0, 54, 0);
+    beam.addColorStop(0, "rgba(255,239,151,.26)");
+    beam.addColorStop(1, "rgba(255,239,151,0)");
+    target.fillStyle = beam;
+    target.beginPath();
+    target.moveTo(9, -4); target.lineTo(56, -17); target.lineTo(56, 17); target.lineTo(9, 4);
+    target.closePath(); target.fill();
+    target.strokeStyle = "#26333a";
+    target.lineWidth = 2;
+    target.fillStyle = "#526b77";
+    target.beginPath(); target.roundRect(-3, -5, 19, 10, 4); target.fill(); target.stroke();
+    target.fillStyle = "#92aab3";
+    target.beginPath(); target.roundRect(7, -7, 9, 14, 3); target.fill(); target.stroke();
+    target.fillStyle = "#fff2a5";
+    target.beginPath(); target.ellipse(16, 0, 2.5, 5, 0, 0, TAU); target.fill();
+    target.fillStyle = "#e4b54a";
+    target.beginPath(); target.roundRect(0, -6.5, 5, 2, 1); target.fill();
+    target.restore();
+    drawRunningGloveOn(target, hand.handX, hand.handY, hand.gloveRotation);
+  }
+
+  function drawTailoredFiberCable(target, player, stride, speedRatio) {
+    const hand = accessoryHandPose(player, stride, speedRatio);
+    const bounce = player.state === "run" ? Math.sin(player.runCycle * 2) * 1.6 : 0;
+    target.save();
+    target.translate(hand.handX + 2, hand.handY + 7 + bounce);
+    target.strokeStyle = "#0a596f";
+    target.lineWidth = 5.5;
+    target.beginPath(); target.arc(7, 8, 11, -.3, TAU - .3); target.stroke();
+    target.strokeStyle = "#28c4e8";
+    target.lineWidth = 2.4;
+    target.beginPath(); target.arc(7, 8, 11, -.3, TAU - .3); target.stroke();
+    target.beginPath();
+    target.moveTo(15, 1); target.quadraticCurveTo(27, -6, 30, 4); target.stroke();
+    target.shadowColor = "#75efff";
+    target.shadowBlur = 9;
+    target.fillStyle = "#c7fbff";
+    target.beginPath(); target.roundRect(27, 1, 7, 5, 1.5); target.fill();
+    target.shadowBlur = 0;
+    target.fillStyle = "#f5ca50";
+    target.beginPath(); target.arc(7, 8, 3.2, 0, TAU); target.fill();
+    target.restore();
+    drawRunningGloveOn(target, hand.handX, hand.handY, hand.gloveRotation);
+  }
+
+  function drawTailoredSolarLamp(target, player, stride, speedRatio) {
+    const hand = accessoryHandPose(player, stride, speedRatio);
+    const swing = player.state === "run" ? Math.sin(player.runCycle) * .16 : 0;
+    target.save();
+    target.translate(hand.handX, hand.handY + 3);
+    target.rotate(swing);
+    target.strokeStyle = "#243b43";
+    target.lineWidth = 2;
+    target.beginPath(); target.arc(0, 6, 9, Math.PI, 0); target.stroke();
+    target.shadowColor = "#ffe070";
+    target.shadowBlur = 14;
+    const lamp = target.createLinearGradient(0, 7, 0, 27);
+    lamp.addColorStop(0, "#fff2a8");
+    lamp.addColorStop(1, "#e7a73b");
+    target.fillStyle = lamp;
+    target.beginPath(); target.roundRect(-8, 7, 16, 20, 5); target.fill();
+    target.shadowBlur = 0;
+    target.strokeStyle = "#274953";
+    target.stroke();
+    target.fillStyle = "#173d54";
+    target.beginPath();
+    target.moveTo(-10, 5); target.lineTo(-6, 0); target.lineTo(7, 0); target.lineTo(10, 5); target.closePath(); target.fill();
+    target.strokeStyle = "#62b8ce";
+    target.lineWidth = 1;
+    target.beginPath(); target.moveTo(-4, 1); target.lineTo(-1, 5); target.moveTo(2, 1); target.lineTo(5, 5); target.stroke();
+    target.fillStyle = "rgba(255,255,255,.72)";
+    target.beginPath(); target.roundRect(-4, 10, 3, 11, 1.5); target.fill();
     target.restore();
     drawRunningGloveOn(target, hand.handX, hand.handY, hand.gloveRotation);
   }
@@ -5034,14 +5111,14 @@
 
   function renderOutfitShop() {
     ui.outfitGrid.replaceChildren();
-    for (const [category, label] of Object.entries(OUTFIT_CATEGORIES)) {
+    for (const [category, label] of Object.entries(ITEM_CATEGORIES)) {
       const section = document.createElement("section");
       section.className = "outfit-category";
-      section.innerHTML = `<div class="outfit-category-heading"><h3>${label}</h3><small>Maximal 1 gleichzeitig</small></div><div class="outfit-category-grid"></div>`;
+      section.innerHTML = `<div class="outfit-category-heading"><h3>${label}</h3><small>Maximal 1 in der Hand</small></div><div class="outfit-category-grid"></div>`;
       const grid = section.querySelector(".outfit-category-grid");
-      for (const outfit of OUTFITS.filter((item) => item.category === category)) {
-        const owned = game.ownedOutfits.has(outfit.id);
-        const equipped = game.equippedOutfits.has(outfit.id);
+      for (const outfit of HAND_ITEMS.filter((item) => item.category === category)) {
+        const owned = game.ownedItems.has(outfit.id);
+        const equipped = game.equippedItems.has(outfit.id);
         const card = document.createElement("article");
         card.className = `outfit-card${equipped ? " is-equipped" : ""}`;
         card.style.setProperty("--outfit-bg", outfit.color);
@@ -5052,7 +5129,7 @@
           <b>${outfit.name}</b>
           <p>${outfit.description}</p>
           <button type="button"${owned ? " class=\"is-owned\"" : ""}>
-            ${owned ? (equipped ? "Ablegen" : "Anziehen") : `Kaufen · ${outfit.price} ◆`}
+            ${owned ? (equipped ? "Weglegen" : "In die Hand nehmen") : `Kaufen · ${outfit.price} ◆`}
           </button>`;
         renderOutfitVariantInto(card.querySelector(".outfit-card-avatar"), singleOutfitLoadout(outfit));
         card.querySelector("button").addEventListener("click", () => chooseOutfit(outfit));
@@ -5061,32 +5138,32 @@
       ui.outfitGrid.append(section);
     }
     renderOutfitVariantInto(ui.outfitPreviewCanvas, currentOutfitLoadout());
-    ui.previewLoadout.textContent = [...game.equippedOutfits]
-      .map((id) => OUTFITS.find((outfit) => outfit.id === id)?.name)
+    ui.previewLoadout.textContent = [...game.equippedItems]
+      .map((id) => HAND_ITEMS.find((item) => item.id === id)?.name)
       .filter(Boolean)
-      .join(" · ") || "Noch keine Ausrüstung";
+      .join(" · ") || "Kein Item ausgewählt";
     updateHud();
   }
 
   function chooseOutfit(outfit) {
-    if (!game.ownedOutfits.has(outfit.id)) {
+    if (!game.ownedItems.has(outfit.id)) {
       if (game.wallet < outfit.price) {
         showToast(`Noch ${outfit.price - game.wallet} Bergfunken bis zum ${outfit.name}.`);
         return;
       }
       game.wallet -= outfit.price;
-      game.ownedOutfits.add(outfit.id);
+      game.ownedItems.add(outfit.id);
       unequipCategory(outfit.category);
-      game.equippedOutfits.add(outfit.id);
-      showToast(`${outfit.name} gekauft und angezogen!`);
+      game.equippedItems.add(outfit.id);
+      showToast(`${outfit.name} gekauft und in die Hand genommen!`);
       playTone(520, .11, "sine", .04, 180);
-    } else if (game.equippedOutfits.has(outfit.id)) {
-      game.equippedOutfits.delete(outfit.id);
-      showToast(`${outfit.name} abgelegt.`);
+    } else if (game.equippedItems.has(outfit.id)) {
+      game.equippedItems.delete(outfit.id);
+      showToast(`${outfit.name} weggelegt.`);
     } else {
       unequipCategory(outfit.category);
-      game.equippedOutfits.add(outfit.id);
-      showToast(`${outfit.name} angezogen.`);
+      game.equippedItems.add(outfit.id);
+      showToast(`${outfit.name} in die Hand genommen.`);
       playTone(440, .08, "sine", .03, 90);
     }
     saveProgress();
@@ -5094,8 +5171,8 @@
   }
 
   function unequipCategory(category) {
-    for (const outfit of OUTFITS) {
-      if (outfit.category === category) game.equippedOutfits.delete(outfit.id);
+    for (const item of HAND_ITEMS) {
+      if (item.category === category) game.equippedItems.delete(item.id);
     }
   }
 
@@ -5543,14 +5620,17 @@
   }
 
   function init() {
-    game.equippedOutfits = new Set([...game.equippedOutfits].filter((id) => game.ownedOutfits.has(id)));
-    const equippedCategories = new Set();
-    game.equippedOutfits = new Set([...game.equippedOutfits].filter((id) => {
-      const outfit = OUTFITS.find((item) => item.id === id);
-      if (!outfit || equippedCategories.has(outfit.category)) return false;
-      equippedCategories.add(outfit.category);
-      return true;
-    }));
+    if (!game.itemOnlyMigrationDone) {
+      for (const [id, refund] of Object.entries(LEGACY_OUTFIT_REFUNDS)) {
+        if (game.ownedItems.delete(id)) game.wallet += refund;
+        game.equippedItems.delete(id);
+      }
+      game.itemOnlyMigrationDone = true;
+    }
+    game.ownedItems = new Set([...game.ownedItems].filter((id) => HAND_ITEMS.some((item) => item.id === id)));
+    game.equippedItems = new Set([...game.equippedItems]
+      .filter((id) => game.ownedItems.has(id) && HAND_ITEMS.some((item) => item.id === id))
+      .slice(0, 1));
     game.ownedTalents = new Set([...game.ownedTalents].filter((id) => TALENTS.some((talent) => talent.id === id)));
     game.talents = new Set([...game.talents]
       .filter((id) => game.ownedTalents.has(id))
@@ -5563,6 +5643,7 @@
     stage.classList.toggle("is-underwater", Boolean(game.level.underwater));
     game.player = createPlayer(game.level.start, game.level.underwater);
     game.mode = "menu";
+    saveProgress();
     window.addEventListener("resize", resizeCanvas);
     window.setTimeout(() => ui.loading.classList.add("is-hidden"), 550);
     requestAnimationFrame(frame);

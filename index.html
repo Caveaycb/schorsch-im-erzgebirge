@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=25" />
+    <link rel="stylesheet" href="styles.css?v=26" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -35,9 +35,9 @@
           <span class="hud-chip level-name" id="levelName">Waldweg bei Seiffen</span>
         </div>
 
-          <nav class="header-actions header-actions-right" aria-label="Rucksack und Outfits">
+          <nav class="header-actions header-actions-right" aria-label="Rucksack und Items">
             <button class="quick-menu-button" id="inventoryButton" type="button" aria-label="Rucksack mit Reiseandenken öffnen"><span aria-hidden="true">▣</span><small>Rucksack</small></button>
-            <button class="quick-menu-button shop-button" id="outfitButton" type="button" aria-label="Outfit-Laden öffnen"><span aria-hidden="true">♙</span><small>Outfits</small></button>
+            <button class="quick-menu-button shop-button" id="outfitButton" type="button" aria-label="Hand-Items öffnen"><span aria-hidden="true">☼</span><small>Items</small></button>
           </nav>
         </div>
         <div class="system-actions" aria-label="Spieleinstellungen">
@@ -108,20 +108,20 @@
         <section class="panel outfit-panel" id="outfitPanel" hidden aria-labelledby="outfitTitle">
           <div class="panel-heading outfit-heading">
             <div>
-              <p class="eyebrow">Schorschs Wanderstube</p>
-              <h2 id="outfitTitle">Outfits für unterwegs</h2>
-              <p>Finde Bergfunken und kombiniere Jacke, Mütze, Schuhe und Zubehör. Pro Kategorie kann Schorsch genau ein Teil tragen – jede Zusammenstellung wird als eigene, passgenaue Schorsch-Variante dargestellt.</p>
+              <p class="eyebrow">Schorschs Ausrüstung</p>
+              <h2 id="outfitTitle">Items für unterwegs</h2>
+              <p>Tausche Bergfunken gegen nützliche Fundstücke. Schorsch kann immer genau ein Item sichtbar in der Hand tragen.</p>
             </div>
             <div class="shop-heading-actions">
               <span class="wallet-chip" aria-label="Verfügbare Bergfunken"><i>◆</i><b id="shopWallet">0</b></span>
-              <button class="close-button" data-close-panel type="button" aria-label="Outfit-Laden schließen">×</button>
+              <button class="close-button" data-close-panel type="button" aria-label="Items schließen">×</button>
             </div>
           </div>
           <div class="outfit-layout">
-            <div class="shop-preview" aria-label="Vorschau von Schorschs Outfit">
+            <div class="shop-preview" aria-label="Vorschau von Schorschs Hand-Item">
               <span class="preview-halo"></span>
-              <canvas id="outfitPreviewCanvas" width="260" height="340" aria-label="Schorsch in seiner gewählten Outfit-Kombination"></canvas>
-              <small id="previewLoadout">Deine Kombination</small>
+              <canvas id="outfitPreviewCanvas" width="260" height="340" aria-label="Schorsch mit seinem ausgewählten Item"></canvas>
+              <small id="previewLoadout">Kein Item ausgewählt</small>
             </div>
             <div class="outfit-grid" id="outfitGrid"></div>
           </div>
@@ -197,6 +197,6 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=37"></script>
+    <script src="game.js?v=38"></script>
   </body>
 </html>
