@@ -58,7 +58,7 @@
     { name: "Über Wolkenstein", short: "Wolkenstein", subtitle: "Burgenblick und Wolkensprünge", accent: "#7c659c", sky: ["#88bddd", "#f0e8d2"], ground: "#59725a", mood: "castle", backdrop: "level-09" },
     { name: "Gipfel am Fichtelberg", short: "Fichtelberg", subtitle: "Das große Finale über den Wolken", accent: "#c15455", sky: ["#69abc9", "#f8e8c5"], ground: "#4d725c", mood: "summit", backdrop: "level-10" },
     { name: "Der geflutete Stollen", short: "Tauchstollen", subtitle: "Bonus: durch versunkene Schächte", accent: "#47c8d2", sky: ["#0d4658", "#2f8991"], ground: "#365c5e", mood: "underwater", backdrop: "level-11", underwater: true, bonus: true },
-    { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "day", bonus: true },
+    { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "level-12", bonus: true },
   ];
 
   const OUTFIT_CATEGORIES = {
@@ -239,17 +239,18 @@
     day: "assets/backgrounds/erzgebirge-day-v2.png",
     mine: "assets/backgrounds/silberstollen-v2.png",
     night: "assets/backgrounds/erzgebirge-night-v2.png",
-    "level-01": "assets/backgrounds/level-01-seiffen-v3.png",
-    "level-02": "assets/backgrounds/level-02-lichterdorf-v3.png",
-    "level-03": "assets/backgrounds/level-03-silberstollen-v3.png",
-    "level-04": "assets/backgrounds/level-04-zschopautal-v3.png",
-    "level-05": "assets/backgrounds/level-05-bimmelbahn-v3.png",
-    "level-06": "assets/backgrounds/level-06-annaberg-v3.png",
-    "level-07": "assets/backgrounds/level-07-lichterbogen-v3.png",
-    "level-08": "assets/backgrounds/level-08-greifensteine-v3.png",
-    "level-09": "assets/backgrounds/level-09-wolkenstein-v3.png",
-    "level-10": "assets/backgrounds/level-10-fichtelberg-v3.png",
-    "level-11": "assets/backgrounds/level-11-tauchstollen-v1.png",
+    "level-01": "assets/backgrounds/level-01-seiffen-v4.png",
+    "level-02": "assets/backgrounds/level-02-lichterdorf-v4.png",
+    "level-03": "assets/backgrounds/level-03-silberstollen-v4.png",
+    "level-04": "assets/backgrounds/level-04-zschopautal-v4.png",
+    "level-05": "assets/backgrounds/level-05-bimmelbahn-v4.png",
+    "level-06": "assets/backgrounds/level-06-annaberg-v4.png",
+    "level-07": "assets/backgrounds/level-07-lichterbogen-v4.png",
+    "level-08": "assets/backgrounds/level-08-greifensteine-v4.png",
+    "level-09": "assets/backgrounds/level-09-wolkenstein-v4.png",
+    "level-10": "assets/backgrounds/level-10-fichtelberg-v4.png",
+    "level-11": "assets/backgrounds/level-11-tauchstollen-v2.png",
+    "level-12": "assets/backgrounds/level-12-sonnenbahn-v1.png",
   };
   const backdropImages = {};
 
@@ -1869,7 +1870,6 @@
     ctx.drawImage(image, x, y, width, height);
     ctx.filter = "none";
     drawBackdropDepth(level, visibleWidth);
-    if (!level.underwater) drawEnergyBackdrop(level, visibleWidth * .62 - game.cameraX * .11);
 
     const readability = ctx.createLinearGradient(0, 250, 0, H);
     readability.addColorStop(0, "rgba(18,42,38,0)");
@@ -2034,7 +2034,6 @@
       default:
         for (let i = 0; i < 4; i += 1) drawFachwerkHouse(x - 270 + i * 160, 458, 0.62, level.accent);
     }
-    if (!level.underwater) drawEnergyBackdrop(level, x);
     ctx.restore();
   }
 
