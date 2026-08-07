@@ -58,6 +58,7 @@
     { name: "Über Wolkenstein", short: "Wolkenstein", subtitle: "Burgenblick und Wolkensprünge", accent: "#7c659c", sky: ["#88bddd", "#f0e8d2"], ground: "#59725a", mood: "castle", backdrop: "level-09" },
     { name: "Gipfel am Fichtelberg", short: "Fichtelberg", subtitle: "Das große Finale über den Wolken", accent: "#c15455", sky: ["#69abc9", "#f8e8c5"], ground: "#4d725c", mood: "summit", backdrop: "level-10" },
     { name: "Der geflutete Stollen", short: "Tauchstollen", subtitle: "Bonus: durch versunkene Schächte", accent: "#47c8d2", sky: ["#0d4658", "#2f8991"], ground: "#365c5e", mood: "underwater", backdrop: "level-11", underwater: true, bonus: true },
+    { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "day", bonus: true },
   ];
 
   const OUTFIT_CATEGORIES = {
@@ -109,6 +110,7 @@
     { name: "Wolkensteiner Menuett", tempo: 100, meter: 6, root: 62, mode: "major", lead: "flute", rhythm: "minuet", progression: [0, 7, 5, 0], melody: [0, 4, 7, 9, 7, 4, 2, 5, 9, 11, 9, 5, 4, 2, 0, 2, 4, null] },
     { name: "Fichtelberger Gipfelreigen", tempo: 116, meter: 8, root: 67, mode: "major", lead: "horn", rhythm: "march", progression: [0, 5, 2, 7], melody: [0, 4, 7, 12, 11, 9, 7, null, 5, 9, 12, 14, 12, 9, 7, null] },
     { name: "Tauchstollen-Wasserweise", tempo: 82, meter: 8, root: 60, mode: "dorian", lead: "flute", rhythm: "flow", progression: [0, 3, 7, 5], melody: [0, 2, 3, 7, 9, 7, 5, 3, 0, -2, 0, 3, 5, 7, 3, null] },
+    { name: "Sonnenbahn-Polka", tempo: 118, meter: 8, root: 65, mode: "major", lead: "accordion", rhythm: "polka", progression: [0, 5, 7, 0], melody: [0, 4, 7, 9, 7, 4, 2, null, 5, 9, 12, 9, 7, 4, 2, null] },
   ];
 
   const SECRET_MOTIFS = [
@@ -500,7 +502,7 @@
   }
 
   function createFloodedMineLevel() {
-    const index = LEVELS.length - 1;
+    const index = LEVELS.findIndex((entry) => entry.underwater);
     const meta = LEVELS[index];
     const worldWidth = 6100;
     const platforms = [
@@ -555,6 +557,7 @@
       checkpoint: { x: 2090, y: 330, active: false, label: "Versunkene Lore" },
       start: { x: 90, y: 340 },
       collected: 0,
+      bonusMultiplier: 5,
       mechanic: "Freies Tauchen durch Strömungen und versunkene Schächte",
       currents: [
         { x: 720, y: 115, w: 520, h: 470, push: 72, lift: -22 },
@@ -579,8 +582,86 @@
     };
   }
 
+  function createSolarRailBonusLevel() {
+    const index = LEVELS.findIndex((entry) => entry.mood === "solar");
+    const meta = LEVELS[index];
+    const worldWidth = 6600;
+    const platforms = [
+      bonusGround("solar-ground-0", 0, 620, 790, "earth"),
+      bonusGround("solar-ground-1", 970, 605, 760, "earth"),
+      bonusGround("solar-ground-2", 1940, 625, 720, "earth"),
+      bonusGround("solar-ground-3", 2890, 600, 820, "earth"),
+      bonusGround("solar-ground-4", 3940, 620, 750, "earth"),
+      bonusGround("solar-ground-5", 4910, 595, 840, "earth"),
+      bonusGround("solar-ground-6", 5960, 615, 640, "earth"),
+      bonusLedge("solar-roof-0", 330, 470, 230, "wood"),
+      bonusLedge("solar-roof-1", 760, 355, 210, "stone"),
+      bonusLedge("solar-roof-2", 1240, 430, 240, "wood"),
+      bonusLedge("solar-roof-3", 1650, 310, 220, "stone"),
+      bonusLedge("solar-roof-4", 2170, 450, 230, "wood"),
+      bonusLedge("solar-roof-5", 2580, 330, 230, "stone"),
+      bonusLedge("solar-roof-6", 3150, 440, 260, "wood"),
+      bonusLedge("solar-roof-7", 3590, 300, 230, "stone"),
+      bonusLedge("solar-roof-8", 4180, 445, 245, "wood"),
+      bonusLedge("solar-roof-9", 4620, 335, 240, "stone"),
+      bonusLedge("solar-roof-10", 5250, 425, 255, "wood"),
+      bonusLedge("solar-roof-11", 5700, 300, 230, "stone"),
+    ];
+    const sparkSpots = [
+      [210, 535], [430, 385], [690, 500], [890, 275], [1120, 505], [1370, 350],
+      [1580, 510], [1760, 230], [2070, 520], [2280, 365], [2510, 510], [2690, 255],
+      [3020, 495], [3270, 355], [3480, 500], [3700, 220], [4050, 510], [4290, 360],
+      [4510, 505], [4740, 270], [5070, 485], [5370, 335], [5590, 500], [5830, 225], [6160, 505],
+    ];
+    const level = {
+      ...meta,
+      index,
+      worldWidth,
+      platforms,
+      collectibles: sparkSpots.map(([x, y], sparkIndex) => ({ id: `solar-c-${sparkIndex}`, x, y, collected: false, phase: sparkIndex * .57 })),
+      hazards: [
+        { x: 1060, y: 470, baseX: 1060, baseY: 470, r: 21, range: 76, verticalRange: 18, speed: .68, phase: .4, kind: "sunBoost" },
+        { x: 2810, y: 430, baseX: 2810, baseY: 430, r: 21, range: 80, verticalRange: 20, speed: .72, phase: 2.1, kind: "sunBoost" },
+        { x: 4700, y: 400, baseX: 4700, baseY: 400, r: 21, range: 84, verticalRange: 18, speed: .76, phase: 4.2, kind: "sunBoost" },
+        { x: 3500, y: 565, baseX: 3500, r: 24, range: 72, speed: .78, phase: 1.5 },
+      ],
+      springs: [
+        { x: 690, y: 587, w: 54, h: 18 },
+        { x: 2700, y: 582, w: 54, h: 18 },
+        { x: 5650, y: 577, w: 54, h: 18 },
+      ],
+      goal: { x: 6420, y: 499, w: 72, h: 116 },
+      checkpoints: [
+        { x: 2110, y: 539, active: false, label: "Sonnenwiese" },
+        { x: 4610, y: 534, active: false, label: "Ladestation" },
+      ],
+      checkpoint: { x: 2110, y: 539, active: false, label: "Sonnenwiese" },
+      start: { x: 92, y: 522 },
+      collected: 0,
+      mechanic: "Sonnenfunken laden die leise Bergbahn für die Heimfahrt",
+      currents: [],
+      windZones: [],
+      items: [
+        { id: "solar-a", x: 1840, y: 266, name: "Sonnenbahn-Fahrkarte", type: "ticket", color: "#f2c857", collected: game.foundItems.has(`${index}:solar-a`) },
+        { id: "solar-b", x: 3870, y: 518, name: "Goldener Ladefunke", type: "star", color: "#ffcb48", collected: game.foundItems.has(`${index}:solar-b`) },
+        { id: "solar-c", x: 5890, y: 255, name: "Kleiner Solarkompass", type: "badge", color: "#e6a33c", collected: game.foundItems.has(`${index}:solar-c`) },
+      ],
+      lifePickups: [
+        { id: "solar-life-0", x: 1450, y: 380, collected: false, phase: .9 },
+        { id: "solar-life-1", x: 3480, y: 520, collected: false, phase: 2.7 },
+        { id: "solar-life-2", x: 5480, y: 380, collected: false, phase: 4.5 },
+      ],
+      secret: { found: true },
+      secretEntrance: null,
+      handcrafted: false,
+    };
+    addPuzzleChallenge(level);
+    return level;
+  }
+
   function createLevel(index) {
     if (LEVELS[index]?.underwater) return createFloodedMineLevel();
+    if (LEVELS[index]?.mood === "solar") return createSolarRailBonusLevel();
     if (index === 0) {
       const seiffen = createSeiffenLevel();
       addPuzzleChallenge(seiffen);
@@ -752,7 +833,9 @@
     const grounds = level.platforms.filter((platform) => platform.ground);
     if (grounds.length < 3) return;
 
-    const kind = PUZZLE_KINDS[level.index % PUZZLE_KINDS.length];
+    const kind = level.mood === "solar"
+      ? PUZZLE_KINDS.find((entry) => entry.id === "solarRelay")
+      : PUZZLE_KINDS[level.index % PUZZLE_KINDS.length];
     const anchorIndex = Math.max(1, Math.min(grounds.length - 2, Math.floor(grounds.length * .54)));
     const anchor = grounds[anchorIndex];
     const baseX = anchor.x + Math.min(anchor.w * .52, Math.max(170, anchor.w - 230));
@@ -1105,7 +1188,9 @@
     playTone(340, 0.09, "sine", 0.04);
     playRegionalIntro(game.level);
     showToast(game.level.underwater
-      ? "Bonuslevel: Tauchstollen · ↑/W aufwärts, ↓/S abwärts"
+      ? "Bonuslevel: Tauchstollen · alles Eingesammelte zählt ×5!"
+      : game.level.mood === "solar"
+        ? "Bonuslevel: Sonnenbahn · lade die ruhige Bergbahn für die Heimfahrt!"
       : `Level ${game.levelIndex + 1}: ${game.level.short} · ${game.level.mechanic || "Wanderfreude"}`);
   }
 
@@ -1243,8 +1328,12 @@
     const foundSecret = game.level.secret?.found;
     ui.finishText.textContent = game.level.underwater
       ? foundEverySpark
-        ? `${game.playerName} hat jeden Bergfunken im gefluteten Stollen geborgen!`
-        : `${game.playerName} hat den versunkenen Ausgang erreicht. Im Wasser glitzern noch Schätze.`
+        ? `${game.playerName} hat jeden Bergfunken im gefluteten Stollen geborgen – jeder Fund zählte fünffach!`
+        : `${game.playerName} hat den versunkenen Ausgang erreicht. Im Wasser glitzern noch fünffache Schätze.`
+      : game.level.mood === "solar"
+        ? foundEverySpark
+          ? `${game.playerName} hat alle Sonnenfunken gesammelt und die leise Bergbahn für die Heimfahrt geladen!`
+          : `${game.playerName} hat die Sonnenbahn erreicht. Einige Sonnenfunken warten noch auf den Rückweg.`
       : foundEverySpark && foundSecret
         ? `${game.playerName} hat jeden Bergfunken und den geheimen Zwischenlevel entdeckt!`
       : foundSecret
@@ -1252,9 +1341,10 @@
         : foundEverySpark
           ? `${game.playerName} hat jeden Bergfunken entdeckt! Ein Stolleneingang ist noch verborgen.`
           : `${game.playerName} hat den Weg geschafft. Geheimgang, Andenken und Bergfunken warten noch.`;
+    const next = LEVELS[game.levelIndex + 1];
     ui.nextLevel.textContent = game.levelIndex === LEVELS.length - 1
-      ? "Noch einmal abtauchen ↻"
-      : game.levelIndex === LEVELS.length - 2 ? "Bonuslevel: Abtauchen →" : "Nächster Ort →";
+      ? "Noch einmal auf Sonnenreise ↻"
+      : next?.bonus ? `Bonuslevel: ${next.short} →` : "Nächster Ort →";
     openPanel(ui.finish);
   }
 
@@ -1448,18 +1538,20 @@
       }
       if (rectsOverlap(player, box)) {
         crystal.collected = true;
-        game.sparks += 1;
+        const collectionMultiplier = level.bonusMultiplier || 1;
+        game.sparks += collectionMultiplier;
         level.collected += 1;
         const claimId = `${level.index}:${crystal.id}`;
         const firstDiscovery = !game.claimedSparks.has(claimId);
         if (firstDiscovery) {
           game.claimedSparks.add(claimId);
-          game.wallet += 1;
+          game.wallet += collectionMultiplier;
           saveProgress();
         }
         burst(crystal.x, crystal.y, "#ffd35f", 12, 180);
         playTone(660 + (game.sparks % 5) * 75, 0.09, "sine", 0.045, 120);
-        if (firstDiscovery && game.wallet === 8) showToast("Genug Bergfunken für den ersten Umhang!");
+        if (firstDiscovery && collectionMultiplier > 1) showToast(`Tauchbonus ×${collectionMultiplier}: +${collectionMultiplier} Bergfunken!`);
+        else if (firstDiscovery && game.wallet === 8) showToast("Genug Bergfunken für den ersten Umhang!");
         updateHud();
       }
     }
@@ -1476,8 +1568,12 @@
       playTone(540, .1, "triangle", .04, 260);
       window.setTimeout(() => playTone(820, .12, "sine", .025, 120), 80);
       if (firstDiscovery) {
+        const collectionMultiplier = level.bonusMultiplier || 1;
+        if (collectionMultiplier > 1) game.wallet += collectionMultiplier;
         saveProgress();
-        showToast(`Neues Reiseandenken: ${item.name}!`);
+        showToast(collectionMultiplier > 1
+          ? `${item.name}! Tauchbonus ×${collectionMultiplier}: +${collectionMultiplier} Bergfunken.`
+          : `Neues Reiseandenken: ${item.name}!`);
       } else {
         showToast(`${item.name} wiedergefunden.`);
       }
@@ -1493,10 +1589,13 @@
         showToast("999 Leben – mehr passen nicht in Schorschs Rucksack!");
       } else {
         const talentBonus = game.talents.has("extraHeart") && !game.lifeTalentUsed;
-        const gained = Math.min(MAX_LIVES - game.hearts, talentBonus ? 2 : 1);
+        const collectionMultiplier = level.bonusMultiplier || 1;
+        const gained = Math.min(MAX_LIVES - game.hearts, (talentBonus ? 2 : 1) * collectionMultiplier);
         game.hearts = Math.min(MAX_LIVES, game.hearts + gained);
         if (talentBonus) game.lifeTalentUsed = true;
-        showToast(talentBonus ? `Wanderherz gefunden – ${gained} Leben dazu!` : "Wanderherz gefunden – ein Leben dazu!");
+        showToast(collectionMultiplier > 1
+          ? `Tauchbonus ×${collectionMultiplier}: ${gained} Leben dazu!`
+          : talentBonus ? `Wanderherz gefunden – ${gained} Leben dazu!` : "Wanderherz gefunden – ein Leben dazu!");
       }
       burst(life.x, life.y, "#e96372", 20, 220);
       playTone(520, .1, "sine", .04, 180);
@@ -1753,6 +1852,7 @@
     ctx.drawImage(image, x, y, width, height);
     ctx.filter = "none";
     drawBackdropDepth(level, visibleWidth);
+    if (!level.underwater) drawEnergyBackdrop(level, visibleWidth * .62 - game.cameraX * .11);
 
     const readability = ctx.createLinearGradient(0, 250, 0, H);
     readability.addColorStop(0, "rgba(18,42,38,0)");
@@ -1923,12 +2023,12 @@
 
   function drawEnergyBackdrop(level, x) {
     const groundY = level.mood === "summit" ? 502 : level.mood === "night" ? 518 : 525;
-    const solarScale = level.mood === "mine" || level.mood === "rail" ? .82 : .68;
+    const solarScale = level.mood === "solar" ? 1.05 : level.mood === "mine" || level.mood === "rail" ? .82 : .68;
     ctx.save();
     ctx.globalAlpha = level.mood === "night" ? .86 : .78;
     drawSolarArray(x - 410, groundY, solarScale);
     drawEVChargingPoint(x + 300, groundY + 4, .78);
-    if (level.mood === "rail" || level.mood === "village" || level.mood === "rooftops") drawElectricShuttle(x + 395, groundY + 8, .62);
+    if (level.mood === "rail" || level.mood === "village" || level.mood === "rooftops" || level.mood === "solar") drawElectricShuttle(x + 395, groundY + 8, level.mood === "solar" ? .78 : .62);
     ctx.restore();
   }
 
@@ -2825,6 +2925,15 @@
     ctx.strokeStyle = "#fff9d8";
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(x + 18, y - 22); ctx.lineTo(x + 18, y - 8); ctx.moveTo(x + 11, y - 15); ctx.lineTo(x + 25, y - 15); ctx.stroke();
+    if (level.bonusMultiplier > 1) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#fff7cf";
+      ctx.beginPath(); ctx.roundRect(x + 13, y + 12, 26, 14, 6); ctx.fill();
+      ctx.fillStyle = "#9b571d";
+      ctx.font = "900 9px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText(`×${level.bonusMultiplier}`, x + 26, y + 23);
+    }
     ctx.restore();
   }
 
