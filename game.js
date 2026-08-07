@@ -5070,7 +5070,13 @@
       stage.addEventListener(eventName, preventGameGesture, { passive: false });
     });
 
+    const isTextEntry = (target) => target instanceof HTMLElement
+      && (target.matches("input, textarea, select") || target.isContentEditable);
+
     window.addEventListener("keydown", (event) => {
+      // Do not turn letters into game controls while somebody is writing a
+      // name or using another form field in an overlay.
+      if (isTextEntry(event.target)) return;
       const gameKey = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "KeyA", "KeyD", "KeyW", "KeyS", "Space"];
       if (gameKey.includes(event.code)) event.preventDefault();
       if (!pressed.has(event.code) && ["ArrowUp", "KeyW", "Space"].includes(event.code)) queueJump();
