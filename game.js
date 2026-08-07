@@ -234,6 +234,8 @@
   characterImage.src = "assets/characters/schorsch.svg";
   const divingCharacterImage = new Image();
   divingCharacterImage.src = "assets/characters/schorsch-diving.svg";
+  const cvagLogoImage = new Image();
+  cvagLogoImage.src = "assets/branding/cvag-logo.png";
 
   const backdropSources = {
     day: "assets/backgrounds/erzgebirge-day-v2.png",
@@ -243,7 +245,7 @@
     "level-02": "assets/backgrounds/level-02-lichterdorf-v4.png",
     "level-03": "assets/backgrounds/level-03-silberstollen-v4.png",
     "level-04": "assets/backgrounds/level-04-zschopautal-v4.png",
-    "level-05": "assets/backgrounds/level-05-bimmelbahn-v4.png",
+    "level-05": "assets/backgrounds/level-05-bimmelbahn-v5.png",
     "level-06": "assets/backgrounds/level-06-annaberg-v4.png",
     "level-07": "assets/backgrounds/level-07-lichterbogen-v4.png",
     "level-08": "assets/backgrounds/level-08-greifensteine-v4.png",
@@ -3223,30 +3225,88 @@
   function drawTrainPlatform(platform, level) {
     const x = platform.x;
     const y = platform.y;
-    const carriage = ctx.createLinearGradient(0, y - 30, 0, y + 13);
-    carriage.addColorStop(0, "#438457");
-    carriage.addColorStop(.5, level.accent);
-    carriage.addColorStop(1, "#1e543e");
-    ctx.fillStyle = "#2b3332";
-    ctx.beginPath(); ctx.roundRect(x - 4, y + 7, platform.w + 8, 27, 7); ctx.fill();
-    ctx.fillStyle = carriage;
-    ctx.beginPath(); ctx.roundRect(x + 14, y - 31, platform.w - 32, 41, 7); ctx.fill();
-    ctx.strokeStyle = "#e2b750";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 18, y - 27, platform.w - 40, 30);
-    for (let px = x + 35; px < x + platform.w - 28; px += 42) {
-      ctx.fillStyle = "#b9d9d2";
-      ctx.fillRect(px, y - 21, 23, 14);
-      ctx.fillStyle = "rgba(255,245,188,.5)";
-      ctx.fillRect(px + 3, y - 18, 8, 9);
+    const body = ctx.createLinearGradient(0, y - 8, 0, y + 35);
+    body.addColorStop(0, "#f8fbfc");
+    body.addColorStop(.56, "#e4edf1");
+    body.addColorStop(.58, "#1388c9");
+    body.addColorStop(1, "#056aab");
+
+    // Die befahrbaren Wagen greifen Form und Lackierung der Chemnitzer CVAG-Bahn auf.
+    ctx.shadowColor = "rgba(8,35,49,.32)";
+    ctx.shadowBlur = 7;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y - 7, platform.w - 4, 41, [9, 13, 6, 6]);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.fillStyle = "#26343c";
+    ctx.beginPath();
+    ctx.roundRect(x + 9, y - 2, platform.w - 24, 17, 4);
+    ctx.fill();
+    const windowCount = Math.max(2, Math.floor((platform.w - 45) / 34));
+    const windowGap = (platform.w - 49) / windowCount;
+    for (let index = 0; index < windowCount; index += 1) {
+      const px = x + 15 + index * windowGap;
+      ctx.fillStyle = index % 2 ? "#9fc4d1" : "#b8d9df";
+      ctx.beginPath();
+      ctx.roundRect(px, y + 1, Math.max(14, windowGap - 7), 10, 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.42)";
+      ctx.fillRect(px + 2, y + 2, 3, 7);
     }
-    ctx.fillStyle = "#1b2424";
-    ctx.beginPath(); ctx.arc(x + 34, y + 35, 12, 0, TAU); ctx.arc(x + platform.w - 36, y + 35, 12, 0, TAU); ctx.fill();
-    ctx.fillStyle = "#9c4b32";
-    ctx.fillRect(x - 1, y + 28, platform.w + 2, 6);
-    ctx.fillStyle = "rgba(244,244,230,.48)";
-    const steam = Math.sin(game.time * 2 + (platform.baseX ?? x)) * 6;
-    ctx.beginPath(); ctx.arc(x + 22 + steam, y - 47, 10, 0, TAU); ctx.arc(x + 28 + steam, y - 61, 15, 0, TAU); ctx.fill();
+
+    // Dunkle, abgerundete Front mit den weißen Zierlinien der Referenzbahn.
+    ctx.fillStyle = "#1d2a31";
+    ctx.beginPath();
+    ctx.roundRect(x + platform.w - 25, y - 4, 20, 30, [8, 11, 5, 4]);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,.88)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + platform.w - 23, y + 18);
+    ctx.quadraticCurveTo(x + platform.w - 15, y + 23, x + platform.w - 6, y + 17);
+    ctx.stroke();
+    ctx.fillStyle = "#fff4b5";
+    ctx.beginPath(); ctx.arc(x + platform.w - 10, y + 20, 1.8, 0, TAU); ctx.fill();
+
+    // Das bereitgestellte Logo wird aus der Vorlage ausgeschnitten und sauber aufgesetzt.
+    const logoWidth = Math.min(42, platform.w * .23);
+    const logoX = x + Math.max(38, platform.w * .48 - logoWidth / 2);
+    if (cvagLogoImage.complete && cvagLogoImage.naturalWidth) {
+      ctx.drawImage(cvagLogoImage, 18, 150, 411, 155, logoX, y + 17, logoWidth, 13);
+    } else {
+      ctx.fillStyle = "#087fc2";
+      ctx.font = "800 10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("CVAG", logoX + logoWidth / 2, y + 28);
+    }
+
+    ctx.strokeStyle = "#2e3a40";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(x + platform.w * .57, y - 7);
+    ctx.lineTo(x + platform.w * .63, y - 20);
+    ctx.lineTo(x + platform.w * .71, y - 7);
+    ctx.moveTo(x + platform.w * .61, y - 19);
+    ctx.lineTo(x + platform.w * .69, y - 19);
+    ctx.stroke();
+
+    ctx.fillStyle = "#172127";
+    ctx.beginPath();
+    ctx.arc(x + 31, y + 35, 10, 0, TAU);
+    ctx.arc(x + platform.w - 34, y + 35, 10, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = "#8fa2a9";
+    ctx.beginPath();
+    ctx.arc(x + 31, y + 35, 4, 0, TAU);
+    ctx.arc(x + platform.w - 34, y + 35, 4, 0, TAU);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255,255,255,.75)";
+    ctx.fillRect(x + 9, y - 7, platform.w - 24, 2);
   }
 
   function drawSpring(spring, level) {
