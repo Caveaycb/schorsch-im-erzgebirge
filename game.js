@@ -300,6 +300,9 @@
     inSecretRoom: false,
     secretCooldown: 0,
     cameraX: 0,
+    cameraY: 0,
+    cameraLookX: 0,
+    cameraKick: 0,
     hearts: START_LIVES,
     lifeTalentUsed: false,
     safetyNetUsed: false,
@@ -814,7 +817,6 @@
       removeGoalApproachCollectibles(seiffen);
       return seiffen;
     }
-    if (index === 4) return createBimmelbahnAdventureLevel();
     const rng = seededRandom(9103 + index * 719);
     const worldWidth = 8600 + index * 280;
     const platforms = [];
@@ -1311,9 +1313,11 @@
       respawnY: start.y,
       invincible: 0,
       landing: 0,
+      takeoff: 0,
       state: underwater ? "swim" : "idle",
       runCycle: 0,
       stepDust: 0,
+      surfaceType: underwater ? "water" : "earth",
       airtime: 0,
       sunBoost: 0,
     };
@@ -1327,6 +1331,9 @@
     stage.classList.toggle("is-underwater", Boolean(game.level.underwater));
     game.player = createPlayer(game.level.start, game.level.underwater);
     game.cameraX = 0;
+    game.cameraY = 0;
+    game.cameraLookX = 0;
+    game.cameraKick = 0;
     game.mainLevel = null;
     game.mainPlayer = null;
     game.mainCameraX = 0;
@@ -1366,6 +1373,9 @@
     game.level = parent.secretRoom;
     game.player = createPlayer(game.level.start, game.level.underwater);
     game.cameraX = 0;
+    game.cameraY = 0;
+    game.cameraLookX = 0;
+    game.cameraKick = 0;
     game.inSecretRoom = true;
     game.secretCooldown = 1;
     game.musicBeatAt = 0;
@@ -1391,6 +1401,9 @@
     game.player.vy = 0;
     game.player.invincible = 1;
     game.cameraX = Math.max(0, game.mainCameraX - 40);
+    game.cameraY = 0;
+    game.cameraLookX = 0;
+    game.cameraKick = 0;
     game.mainLevel = null;
     game.mainPlayer = null;
     game.inSecretRoom = false;
@@ -1525,6 +1538,7 @@
     player.prevY = player.y;
     player.invincible = Math.max(0, player.invincible - dt);
     player.landing = Math.max(0, player.landing - dt);
+    player.takeoff = Math.max(0, player.takeoff - dt);
     player.stepDust = Math.max(0, player.stepDust - dt);
     player.sunBoost = Math.max(0, player.sunBoost - dt);
     player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
@@ -1549,12 +1563,7 @@
       }
     }
 
-    for (const hazard of level.hazards) {
-      hazard.x = hazard.baseX + Math.sin(game.time * hazard.speed + hazard.phase) * hazard.range;
-      if (hazard.kind === "sunBoost") {
-        hazard.y = hazard.baseY + Math.sin(game.time * hazard.speed * 1.7 + hazard.phase) * hazard.verticalRange;
-      }
-    }
+    for (const hazard of level.hazards) updateHazardMotion(hazard, level);
 
     const move = (held.left || pressed.has("ArrowLeft") || pressed.has("KeyA") ? -1 : 0)
       + (held.right || pressed.has("ArrowRight") || pressed.has("KeyD") ? 1 : 0);
@@ -1582,11 +1591,14 @@
       player.vy = Math.max(-260, Math.min(260, player.vy));
       player.jumpBuffer = 0;
     } else if (player.jumpBuffer > 0 && player.coyote > 0) {
+      const takeoffPlatform = level.platforms.find((platform) => platform.id === player.groundId);
       player.vy = game.talents.has("highJump") ? -855 : -770;
       player.onGround = false;
       player.coyote = 0;
       player.jumpBuffer = 0;
-      burst(player.x + player.w / 2, player.y + player.h, "#f4ead2", 7, 115);
+      player.takeoff = .12;
+      emitSurfaceEffect(level, takeoffPlatform, player.x + player.w / 2, player.y + player.h, "takeoff", 360);
+      game.cameraKick = -4;
       playTone(420, 0.07, "sine", 0.045, 180);
       playTone(660, 0.045, "triangle", 0.018, -90);
     }
@@ -1641,10 +1653,16 @@
         player.vy = 0;
         player.onGround = true;
         player.groundId = landingPlatform.id;
+        player.surfaceType = surfaceKind(level, landingPlatform);
         if (landingPlatform.conveyor) player.vx += landingPlatform.conveyor * dt * 9;
+        if (impact > 360) {
+          const landingStrength = Math.min(1, (impact - 300) / 520);
+          player.landing = .1 + landingStrength * .07;
+          emitSurfaceEffect(level, landingPlatform, player.x + player.w / 2, landingPlatform.y, "landing", impact);
+          game.cameraKick = Math.max(game.cameraKick, 2 + landingStrength * 7);
+          game.shake = Math.max(game.shake, landingStrength * .11);
+        }
         if (impact > 520) {
-          player.landing = 0.13;
-          burst(player.x + player.w / 2, landingPlatform.y, "#e9dfc4", 6, 90);
           playTone(118, 0.055, "triangle", 0.03, -35);
           playTone(190, 0.03, "sine", 0.012, -70);
         }
@@ -1656,7 +1674,7 @@
       player.state = "swim";
       if (Math.hypot(player.vx, player.vy) > 85 && player.stepDust <= 0) {
         player.stepDust = .18;
-        burst(player.x + player.w / 2 - player.direction * 38, player.y + player.h / 2, "#b9f7f3", 3, 42);
+        emitBubbleTrail(player.x + player.w / 2 - player.direction * 38, player.y + player.h / 2, 3, 48);
       }
     } else if (player.onGround) {
       player.airtime = 0;
@@ -1664,7 +1682,8 @@
       if (!wasOnGround && player.landing <= 0) player.landing = .1;
       if (Math.abs(player.vx) > 220 && player.stepDust <= 0) {
         player.stepDust = .115;
-        burst(player.x + player.w / 2 - player.direction * 16, player.y + player.h, "#dfd5b9", 3, 65);
+        const runningPlatform = level.platforms.find((platform) => platform.id === player.groundId);
+        emitSurfaceEffect(level, runningPlatform, player.x + player.w / 2 - player.direction * 16, player.y + player.h, "step", Math.abs(player.vx));
         playTone(level.mood === "mine" ? 120 : 165, .025, "triangle", .009, -18);
       }
     } else {
@@ -1708,7 +1727,7 @@
           game.wallet += collectionMultiplier;
           saveProgress();
         }
-        burst(crystal.x, crystal.y, "#ffd35f", 12, 180);
+        emitCrystalBurst(crystal.x, crystal.y, level.accent);
         playTone(660 + (game.sparks % 5) * 75, 0.09, "sine", 0.045, 120);
         if (firstDiscovery && collectionMultiplier > 1) showToast(`Tauchbonus ×${collectionMultiplier}: +${collectionMultiplier} Bergfunken!`);
         else if (firstDiscovery && game.wallet === 8) showToast("Genug Bergfunken für den ersten Umhang!");
@@ -1828,6 +1847,9 @@
         player.vy = 0;
         player.invincible = 1.5;
         game.cameraX = Math.max(0, player.x - 220);
+        game.cameraY = 0;
+        game.cameraLookX = 0;
+        game.cameraKick = 0;
         burst(player.x + player.w / 2, player.y + player.h / 2, "#e9d37a", 18, 190);
         playTone(620, .14, "sine", .04, 190);
         showToast("Das Wanderseil fängt Schorsch auf – einmal pro Level!");
@@ -1838,9 +1860,16 @@
     }
 
     const visibleWidth = getViewWidth();
-    const lookAhead = Math.max(-120, Math.min(120, player.vx * .32));
-    const targetCamera = Math.max(0, Math.min(level.worldWidth - visibleWidth, player.x + lookAhead - visibleWidth * 0.35));
-    game.cameraX += (targetCamera - game.cameraX) * Math.min(1, dt * 5.6);
+    const desiredLookAhead = Math.max(-135, Math.min(135, player.vx * .35));
+    game.cameraLookX += (desiredLookAhead - game.cameraLookX) * Math.min(1, dt * (player.onGround ? 4.8 : 3.2));
+    const targetCamera = Math.max(0, Math.min(level.worldWidth - visibleWidth, player.x + game.cameraLookX - visibleWidth * .35));
+    const cameraSpeed = Math.abs(targetCamera - game.cameraX) > visibleWidth * .3 ? 8.5 : 5.2;
+    game.cameraX += (targetCamera - game.cameraX) * Math.min(1, dt * cameraSpeed);
+    const airborneLook = underwater ? (player.y + player.h * .5 - H * .48) * .1 : player.onGround ? 0 : (player.y - H * .43) * .055;
+    const targetCameraY = Math.max(-15, Math.min(18, airborneLook));
+    game.cameraY += (targetCameraY - game.cameraY) * Math.min(1, dt * 3.6);
+    game.cameraKick *= Math.pow(.018, dt);
+    if (Math.abs(game.cameraKick) < .04) game.cameraKick = 0;
     game.shake = Math.max(0, game.shake - dt * 2.8);
   }
 
@@ -1866,17 +1895,151 @@
     player.vy = 0;
     player.invincible = 1.5;
     game.cameraX = Math.max(0, player.x - 220);
+    game.cameraY = 0;
+    game.cameraLookX = 0;
+    game.cameraKick = 0;
     updateHud();
     return true;
+  }
+
+  function updateHazardMotion(hazard, level) {
+    if (!Number.isFinite(hazard.baseY)) hazard.baseY = hazard.y;
+    if (!hazard.motionKind) {
+      const variants = hazard.aquatic || level.underwater
+        ? ["swim", "loop", "float"]
+        : ["drift", "loop", "hop"];
+      hazard.motionKind = variants[Math.abs(Math.floor(hazard.phase * 11)) % variants.length];
+    }
+    const time = game.time * hazard.speed + hazard.phase;
+    if (hazard.kind === "sunBoost") {
+      hazard.x = hazard.baseX + Math.sin(time) * hazard.range;
+      hazard.y = hazard.baseY + Math.sin(time * 1.7) * hazard.verticalRange;
+      return;
+    }
+    if (hazard.motionKind === "loop") {
+      hazard.x = hazard.baseX + Math.sin(time) * hazard.range;
+      hazard.y = hazard.baseY + Math.sin(time * 2 + .7) * (hazard.aquatic ? 18 : 10);
+    } else if (hazard.motionKind === "hop") {
+      hazard.x = hazard.baseX + Math.sin(time * .9) * hazard.range;
+      hazard.y = hazard.baseY - Math.abs(Math.sin(time * 1.65)) * 15;
+    } else if (hazard.motionKind === "swim") {
+      hazard.x = hazard.baseX + Math.sin(time) * hazard.range;
+      hazard.y = hazard.baseY + Math.cos(time * 1.35) * 17;
+    } else if (hazard.motionKind === "float") {
+      hazard.x = hazard.baseX + Math.sin(time * .72) * hazard.range;
+      hazard.y = hazard.baseY + Math.sin(time * .88) * 9;
+    } else {
+      hazard.x = hazard.baseX + Math.sin(time) * hazard.range;
+      hazard.y = hazard.baseY + Math.sin(time * .8) * 7;
+    }
+  }
+
+  function surfaceKind(level, platform) {
+    if (level.underwater) return "water";
+    if (level.mood === "river" && platform?.ground) return "water";
+    if (platform?.type === "wood") return "wood";
+    if (platform?.type === "train" || platform?.type === "roof") return "metal";
+    if (platform?.type === "mine") return "mine";
+    if (platform?.type === "stone") return "stone";
+    return "earth";
+  }
+
+  function addParticle(particle) {
+    game.particles.push({
+      gravity: 350,
+      life: .7,
+      maxLife: .7,
+      size: 5,
+      color: "#ffffff",
+      rotation: 0,
+      spin: 0,
+      drag: 1,
+      grow: 0,
+      shape: "square",
+      ...particle,
+    });
+  }
+
+  function emitSurfaceEffect(level, platform, x, y, action, force) {
+    const kind = surfaceKind(level, platform);
+    const rng = seededRandom(Math.floor(x * 13 + y * 31 + game.time * 1000));
+    const amount = action === "landing" ? 7 + Math.floor(Math.min(7, force / 110)) : action === "takeoff" ? 6 : 2;
+    for (let i = 0; i < amount; i += 1) {
+      const side = (rng() - .5) * (action === "landing" ? 1.8 : 1.1);
+      const upward = 22 + rng() * (action === "landing" ? Math.min(150, force * .18) : 65);
+      if (kind === "water") {
+        addParticle({
+          x: x + side * 16, y: y - 2,
+          vx: side * (70 + rng() * 80), vy: -upward * 1.15,
+          gravity: 390, drag: .72, life: .46 + rng() * .28, maxLife: .74,
+          size: 3 + rng() * 4, color: i % 2 ? "#bdeff1" : "#63bac8", shape: "droplet",
+        });
+      } else if (kind === "wood") {
+        addParticle({
+          x: x + side * 12, y: y - 1,
+          vx: side * (55 + rng() * 70), vy: -upward,
+          gravity: 410, drag: .66, life: .38 + rng() * .25, maxLife: .63,
+          size: 4 + rng() * 5, color: i % 2 ? "#d69a55" : "#855231", shape: "shard",
+          rotation: rng() * TAU, spin: (rng() - .5) * 13,
+        });
+      } else if (kind === "metal" || kind === "mine") {
+        addParticle({
+          x, y: y - 2,
+          vx: side * (85 + rng() * 100), vy: -upward * .9,
+          gravity: 520, drag: .82, life: .28 + rng() * .24, maxLife: .52,
+          size: 2 + rng() * 3, color: kind === "mine" ? "#ffb542" : "#f4d477", shape: "spark",
+          rotation: rng() * TAU, spin: (rng() - .5) * 16,
+        });
+      } else {
+        addParticle({
+          x: x + side * 14, y: y - 1,
+          vx: side * (30 + rng() * 52), vy: -upward * .42,
+          gravity: -8, drag: .08, grow: 8 + rng() * 8,
+          life: .42 + rng() * .3, maxLife: .72,
+          size: 5 + rng() * 7, color: kind === "stone" ? "#c3c0ad" : "#d9cba5", shape: "dust",
+        });
+      }
+    }
+  }
+
+  function emitBubbleTrail(x, y, count, force) {
+    const rng = seededRandom(Math.floor(x * 19 + y * 23 + game.time * 1000));
+    for (let i = 0; i < count; i += 1) {
+      addParticle({
+        x: x + (rng() - .5) * 22, y: y + (rng() - .5) * 14,
+        vx: (rng() - .5) * force, vy: -22 - rng() * force,
+        gravity: -38, drag: .18, grow: 2,
+        life: .65 + rng() * .45, maxLife: 1.1,
+        size: 2.5 + rng() * 4, color: "#c9fbf7", shape: "bubble",
+      });
+    }
+  }
+
+  function emitCrystalBurst(x, y, accent) {
+    const rng = seededRandom(Math.floor(x * 29 + y * 17 + game.time * 1000));
+    const colors = ["#fff5a9", "#ffd35f", "#ef941d", accent];
+    for (let i = 0; i < 18; i += 1) {
+      const angle = i / 18 * TAU + (rng() - .5) * .18;
+      const speed = 95 + rng() * 155;
+      addParticle({
+        x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 55,
+        gravity: 280, drag: .74, life: .48 + rng() * .45, maxLife: .93,
+        size: 3 + rng() * 5, color: colors[i % colors.length], shape: i % 3 ? "shard" : "spark",
+        rotation: angle, spin: (rng() - .5) * 14,
+      });
+    }
   }
 
   function updateParticles(dt) {
     for (const particle of game.particles) {
       particle.life -= dt;
+      particle.vx *= Math.pow(particle.drag ?? 1, dt);
+      particle.vy *= Math.pow(particle.drag ?? 1, dt * .45);
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
       particle.vy += particle.gravity * dt;
       particle.rotation += particle.spin * dt;
+      particle.size = Math.max(.2, particle.size + (particle.grow || 0) * dt);
     }
     game.particles = game.particles.filter((particle) => particle.life > 0);
   }
@@ -1886,7 +2049,7 @@
     for (let i = 0; i < count; i += 1) {
       const angle = rng() * TAU;
       const speed = force * (0.35 + rng() * 0.65);
-      game.particles.push({
+      addParticle({
         x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - force * 0.25,
@@ -1910,7 +2073,7 @@
 
     const shakeX = game.shake ? Math.sin(game.time * 70) * game.shake * 12 : 0;
     const shakeY = game.shake ? Math.cos(game.time * 55) * game.shake * 7 : 0;
-    ctx.translate(shakeX, shakeY);
+    ctx.translate(shakeX, shakeY - game.cameraY - game.cameraKick);
     const level = game.level || createLevel(game.levelIndex);
     drawBackground(level);
     drawWorld(level);
@@ -2281,7 +2444,7 @@
     for (const hazard of level.hazards) {
       if (!hazard.collected && hazard.x >= left && hazard.x <= right) drawHazard(hazard, level);
     }
-    if (level.hints?.length) drawLevelHints(level);
+    if (level.handcrafted) drawLevelHints(level);
     if (level.mood === "mine" || level.backdrop === "mine") drawCaveDarkness(level);
     drawParticles();
     if (game.player) drawPlayer(game.player);
@@ -2404,8 +2567,7 @@
       return;
     }
     if (level.isBonusRoom) drawBonusRoomDecor(level, visibleWidth);
-    if (level.decorations?.length) drawSeiffenDecorations(level, visibleWidth);
-    if (level.railAdventure) drawRailAdventureDecorations(level, visibleWidth);
+    if (level.handcrafted) drawSeiffenDecorations(level, visibleWidth);
     const start = Math.max(0, Math.floor(game.cameraX / 340) - 1);
     const end = Math.ceil((game.cameraX + visibleWidth) / 340) + 1;
     for (let i = start; i <= end; i += 1) {
@@ -3322,9 +3484,23 @@
       { dark: "#8e8797", light: "#c4bccd", highlight: "#eee9f1", outline: "#696172", blush: "#cf829a" },
     ];
     const cloud = cloudStyles[Math.abs(Math.floor(hazard.phase * 7)) % cloudStyles.length];
+    const wobble = Math.sin(game.time * hazard.speed * 3.1 + hazard.phase) * (hazard.motionKind === "loop" ? .08 : .035);
+    const squash = hazard.motionKind === "hop" ? 1 + Math.sin(game.time * hazard.speed * 3.3 + hazard.phase) * .05 : 1;
+    ctx.translate(x, y);
+    ctx.rotate(wobble);
+    ctx.scale(squash, 2 - squash);
+    ctx.translate(-x, -y);
+    const driftDirection = Math.cos(game.time * hazard.speed + hazard.phase) >= 0 ? 1 : -1;
+    ctx.globalAlpha = .22;
+    ctx.fillStyle = cloud.light;
+    for (let puff = 0; puff < 2; puff += 1) {
+      ctx.beginPath();
+      ctx.arc(x - driftDirection * (31 + puff * 11), y + 5 + puff * 5, 5 - puff, 0, TAU);
+      ctx.fill();
+    }
     ctx.globalAlpha = .26;
     ctx.fillStyle = "#172927";
-    ctx.beginPath(); ctx.ellipse(x, hazard.y + 27, 30, 8, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x, y + 27, 30, 8, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowColor = cloud.dark;
     ctx.shadowBlur = 7;
@@ -3354,7 +3530,8 @@
     ctx.fillStyle = "#f8f4e8";
     ctx.beginPath(); ctx.arc(x - 8, y - 2, 6, 0, TAU); ctx.arc(x + 8, y - 2, 6, 0, TAU); ctx.fill();
     ctx.fillStyle = "#172927";
-    ctx.beginPath(); ctx.arc(x - 7, y - 1, 2.5, 0, TAU); ctx.arc(x + 7, y - 1, 2.5, 0, TAU); ctx.fill();
+    const eyeLook = game.player ? Math.max(-1.8, Math.min(1.8, (game.player.x + game.player.w * .5 - x) * .018)) : 0;
+    ctx.beginPath(); ctx.arc(x - 7 + eyeLook, y - 1, 2.5, 0, TAU); ctx.arc(x + 7 + eyeLook, y - 1, 2.5, 0, TAU); ctx.fill();
     ctx.fillStyle = cloud.blush;
     ctx.globalAlpha = .72;
     ctx.beginPath(); ctx.ellipse(x - 17, y + 7, 4, 2.5, 0, 0, TAU); ctx.ellipse(x + 17, y + 7, 4, 2.5, 0, 0, TAU); ctx.fill();
@@ -3505,8 +3682,15 @@
       tilt = player.vx * .0003 + player.direction * .025;
     }
 
+    if (player.takeoff > 0) {
+      const takeoffAmount = Math.min(1, player.takeoff / .12);
+      scaleX -= takeoffAmount * .045;
+      scaleY += takeoffAmount * .075;
+      lift -= takeoffAmount * 3;
+    }
+
     if (player.landing > 0) {
-      const landingAmount = Math.min(1, player.landing / .13);
+      const landingAmount = Math.min(1, player.landing / .17);
       scaleX += landingAmount * .105;
       scaleY -= landingAmount * .12;
       lift += 4;
@@ -4408,11 +4592,48 @@
   function drawParticles() {
     for (const particle of game.particles) {
       ctx.save();
-      ctx.globalAlpha = Math.max(0, particle.life / particle.maxLife);
+      const fade = Math.max(0, Math.min(1, particle.life / particle.maxLife));
+      ctx.globalAlpha = fade;
       ctx.translate(particle.x, particle.y);
       ctx.rotate(particle.rotation);
       ctx.fillStyle = particle.color;
-      ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+      ctx.strokeStyle = particle.color;
+      if (particle.shape === "dust") {
+        ctx.globalAlpha = fade * .48;
+        ctx.beginPath(); ctx.ellipse(0, 0, particle.size * 1.35, particle.size * .62, 0, 0, TAU); ctx.fill();
+      } else if (particle.shape === "bubble") {
+        ctx.globalAlpha = fade * .68;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(0, 0, particle.size, 0, TAU); ctx.stroke();
+        ctx.globalAlpha = fade * .8;
+        ctx.fillStyle = "rgba(255,255,255,.75)";
+        ctx.beginPath(); ctx.arc(-particle.size * .28, -particle.size * .3, Math.max(.7, particle.size * .18), 0, TAU); ctx.fill();
+      } else if (particle.shape === "droplet") {
+        ctx.beginPath();
+        ctx.moveTo(0, -particle.size * 1.5);
+        ctx.quadraticCurveTo(particle.size, 0, 0, particle.size * 1.15);
+        ctx.quadraticCurveTo(-particle.size, 0, 0, -particle.size * 1.5);
+        ctx.fill();
+      } else if (particle.shape === "shard") {
+        ctx.beginPath();
+        ctx.moveTo(0, -particle.size * 1.4);
+        ctx.lineTo(particle.size * .55, 0);
+        ctx.lineTo(0, particle.size * 1.2);
+        ctx.lineTo(-particle.size * .55, 0);
+        ctx.closePath();
+        ctx.fill();
+      } else if (particle.shape === "spark") {
+        ctx.shadowColor = particle.color;
+        ctx.shadowBlur = 8;
+        ctx.lineWidth = Math.max(1.2, particle.size * .42);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-particle.size * 1.5, 0); ctx.lineTo(particle.size * 1.5, 0);
+        ctx.moveTo(0, -particle.size); ctx.lineTo(0, particle.size);
+        ctx.stroke();
+      } else {
+        ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+      }
       ctx.restore();
     }
   }
