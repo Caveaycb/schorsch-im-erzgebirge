@@ -67,7 +67,12 @@
     } else if (finale.state === "active") {
       ui.missionKicker.textContent = `Finale · ${finale.title}`;
       ui.missionTitle.textContent = finale.activeLabel;
-      if (finale.type === "charge") {
+      if (finale.boss?.active && !finale.boss.defeated) {
+        progress = finale.boss.maxHp ? (finale.boss.maxHp - finale.boss.hp) / finale.boss.maxHp : 0;
+        ui.missionStatus.textContent = finale.boss.engaged
+          ? `♥ ${finale.boss.hp} · Kampf`
+          : `♥ ${finale.boss.hp} · ${Math.ceil(finale.remaining)} s`;
+      } else if (finale.type === "charge") {
         progress = finale.charge / 1.6;
         ui.missionStatus.textContent = `${Math.round(progress * 100)} %`;
       } else if (finale.type === "sequence") {

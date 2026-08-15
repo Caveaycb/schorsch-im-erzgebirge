@@ -2,6 +2,7 @@
   "use strict";
 
   const {
+    GAME_VERSION,
     LEVELS,
     ITEM_CATEGORIES,
     HAND_ITEMS,
@@ -23,6 +24,9 @@
     rectsOverlap,
     movementTuning,
     landingFeedback,
+    damageBoss,
+    isBossStomp,
+    canCompleteEscapeAtGoal,
   } = window.SchorschGame;
 
   const canvas = document.querySelector("#gameCanvas");
@@ -36,6 +40,23 @@
   const START_LIVES = 5;
   const MAX_LIVES = 999;
   const MAX_ACTIVE_TALENTS = 4;
+  const BOSS_PROFILES = Object.freeze({
+    stormCrow: {
+      width: 104, height: 68, yOffset: 112, hoverX: 42, hoverY: 19,
+      attackInterval: 1.45, attackDuration: .38, attackRange: 300, attackStrength: 690,
+      tone: 205,
+    },
+    crystalGuardian: {
+      width: 116, height: 82, yOffset: 108, hoverX: 32, hoverY: 13,
+      attackInterval: 1.72, attackDuration: .5, attackRange: 285, attackStrength: 610,
+      tone: 285,
+    },
+    cloudTitan: {
+      width: 132, height: 92, yOffset: 125, hoverX: 54, hoverY: 24,
+      attackInterval: 1.28, attackDuration: .46, attackRange: 335, attackStrength: 820,
+      tone: 155,
+    },
+  });
 
   const characterImage = new Image();
   characterImage.src = "assets/characters/schorsch.svg";
@@ -77,6 +98,8 @@
   const held = { left: false, right: false, jump: false, down: false };
   let lastTime = performance.now();
   let restartTimer = 0;
+  let resizeFrame = 0;
+  let stageResizeObserver = null;
 
   const storage = loadProgress();
   const storedOwnedTalents = storage.talentLoadoutSaved && Array.isArray(storage.ownedTalents)
@@ -144,7 +167,7 @@
     getBackdropImage,
     createLevel,
   });
-  const { draw, resizeCanvas, getViewWidth, currentOutfitLoadout, singleOutfitLoadout, renderOutfitVariantInto } = renderer;
+  const { draw, resizeCanvas, getViewWidth, getRenderProfile, currentOutfitLoadout, singleOutfitLoadout, renderOutfitVariantInto } = renderer;
   const debugTools = createDebugTools({ canvas, ctx, game, H, getViewWidth });
   const uiActions = createUiActions({
     ui,
@@ -1102,6 +1125,29 @@
     return { x, y, groundY: y + 48 };
   }
 
+  function prepareChapterBossArena(level) {
+    const goalCenter = level.goal.x + level.goal.w * .5;
+    const ground = groundAtX(level, goalCenter) || groundAtX(level, level.goal.x - 120);
+    const x = Math.max(
+      ground.x + 145,
+      Math.min(ground.x + ground.w - 145, level.goal.x - 265),
+    );
+    const startX = Math.max(ground.x + 20, x - 205);
+    const endX = Math.min(ground.x + ground.w - 20, level.goal.x - 18);
+    const overlapsArena = (item, padding = 0) => {
+      const itemStart = item.x - (item.r || 0) - padding;
+      const itemEnd = item.x + (item.w || (item.r || 0) * 2) + padding;
+      return itemEnd > startX && itemStart < endX;
+    };
+
+    // Der Boss braucht eine reproduzierbare, freie Landefläche. Zufällig
+    // erzeugte Dachkanten oder Gegner dürfen den Trefferbereich nicht verdecken.
+    level.platforms = level.platforms.filter((platform) => platform.ground || !overlapsArena(platform, 18));
+    level.hazards = level.hazards.filter((hazard) => !overlapsArena(hazard, 45));
+    level.springs = level.springs.filter((spring) => !overlapsArena(spring, 25));
+    return { x, groundY: ground.y, startX, endX };
+  }
+
   function addCampaignPolish(level) {
     const config = CAMPAIGN_CHAPTERS[level.index];
     if (!config || level.isBonusRoom) return;
@@ -1144,6 +1190,40 @@
       }));
     }
 
+    if (Number(config.bossHits) > 0) {
+      const arena = prepareChapterBossArena(level);
+      const kind = BOSS_PROFILES[config.bossKind] ? config.bossKind : "stormCrow";
+      const profile = BOSS_PROFILES[kind];
+      finale.boss = {
+        name: config.bossName || "Sturmgeist",
+        kind,
+        x: arena.x,
+        y: arena.groundY - profile.yOffset,
+        baseX: arena.x,
+        baseY: arena.groundY - profile.yOffset,
+        arenaStartX: arena.startX,
+        arenaEndX: arena.endX,
+        w: profile.width,
+        h: profile.height,
+        hoverX: profile.hoverX,
+        hoverY: profile.hoverY,
+        attackInterval: profile.attackInterval,
+        attackDuration: profile.attackDuration,
+        attackRange: profile.attackRange,
+        attackStrength: profile.attackStrength,
+        attackTone: profile.tone,
+        afterMechanic: Boolean(config.bossAfterMechanic),
+        hp: config.bossHits,
+        maxHp: config.bossHits,
+        invincible: 0,
+        gustCooldown: .9,
+        gusting: 0,
+        engaged: false,
+        active: false,
+        defeated: false,
+      };
+    }
+
     level.chapter = {
       config,
       task: {
@@ -1166,6 +1246,33 @@
   function nearChapterPoint(player, point, radius = 49) {
     const center = chapterPlayerCenter(player);
     return Math.hypot(center.x - point.x, center.y - point.y) < radius;
+  }
+
+  function resetChapterBoss(finale) {
+    const boss = finale?.boss;
+    if (!boss) return;
+    boss.x = boss.baseX;
+    boss.y = boss.baseY;
+    boss.hp = boss.maxHp;
+    boss.invincible = 0;
+    boss.gustCooldown = .9;
+    boss.gusting = 0;
+    boss.engaged = false;
+    boss.active = finale.state === "active" && !boss.afterMechanic;
+    boss.defeated = false;
+  }
+
+  function activateChapterBoss(level) {
+    const finale = level.chapter?.finale;
+    const boss = finale?.boss;
+    if (!boss || boss.active || boss.defeated) return false;
+    boss.active = true;
+    boss.engaged = false;
+    boss.gustCooldown = .55;
+    boss.gusting = 0;
+    finale.remaining = Math.max(finale.remaining, 12);
+    updateMissionHud(level);
+    return true;
   }
 
   function pulseMissionHud() {
@@ -1219,6 +1326,7 @@
     finale.progress = 0;
     finale.charge = 0;
     finale.nodes.forEach((node) => { node.active = false; });
+    resetChapterBoss(finale);
     game.shake = Math.max(game.shake, .16);
     showChapterBanner("Finale", finale.title, finale.type === "escape" ? "danger" : "success");
     playTone(finale.type === "escape" ? 180 : 430, .17, finale.type === "escape" ? "sawtooth" : "triangle", .04, 180);
@@ -1230,6 +1338,10 @@
     if (!finale || finale.state === "complete") return;
     finale.state = "complete";
     finale.remaining = Math.max(0, finale.remaining);
+    if (finale.boss) {
+      finale.boss.active = false;
+      finale.boss.defeated = true;
+    }
     burst(level.goal.x + level.goal.w * .5, level.goal.y + 35, level.chapter.config.accent, 42, 310);
     game.shake = Math.max(game.shake, .22);
     showChapterBanner("Finale geschafft", finale.doneLabel);
@@ -1245,6 +1357,7 @@
     finale.remaining = finale.duration;
     finale.progress = 0;
     finale.nodes.forEach((node) => { node.active = false; });
+    resetChapterBoss(finale);
     flashFeedback("danger");
     if (loseLife) {
       loseHeart(message);
@@ -1261,6 +1374,83 @@
       playTone(150, .18, "triangle", .035, -60);
     }
     updateMissionHud(level);
+  }
+
+  function updateChapterBoss(level, player, dt) {
+    const finale = level.chapter?.finale;
+    const boss = finale?.boss;
+    if (!boss?.active || boss.defeated) return;
+
+    boss.invincible = Math.max(0, boss.invincible - dt);
+    const playerCenterX = player.x + player.w * .5;
+    const distanceFromBoss = Math.abs(playerCenterX - boss.x);
+    if (!boss.engaged && distanceFromBoss < 430) {
+      boss.engaged = true;
+      finale.remaining = Math.max(finale.remaining, 12);
+      showChapterBanner("Endgegner", `${boss.name} · ${boss.maxHp} Sprünge von oben`, "danger");
+      showToast(`Bosskampf: Der Fluchttimer pausiert – springe ${boss.maxHp} Mal auf ${boss.name}!`);
+    }
+
+    boss.gustCooldown -= boss.engaged ? dt : 0;
+    boss.gusting = Math.max(0, boss.gusting - dt);
+    if (boss.engaged && boss.gustCooldown <= 0) {
+      boss.gustCooldown = boss.attackInterval + Math.sin(game.time * .7) * .16;
+      boss.gusting = boss.attackDuration;
+      playTone(boss.attackTone, .09, boss.kind === "crystalGuardian" ? "triangle" : "sawtooth", .018, -70);
+    }
+
+    const chase = boss.engaged ? Math.max(-72, Math.min(42, (player.x - boss.baseX) * .1)) : 0;
+    const desiredX = boss.baseX + chase + Math.sin(game.time * 1.75) * (boss.engaged ? boss.hoverX : boss.hoverX * .42);
+    boss.x = Math.max(boss.arenaStartX + boss.w * .5, Math.min(boss.arenaEndX - boss.w * .5, desiredX));
+    boss.y = boss.baseY + Math.sin(game.time * (boss.kind === "cloudTitan" ? 1.75 : 2.35)) * boss.hoverY;
+
+    const distance = Math.hypot(playerCenterX - boss.x, player.y + player.h * .5 - boss.y);
+    if (boss.engaged && boss.gusting > 0 && distance < boss.attackRange) {
+      const direction = playerCenterX < boss.x ? -1 : 1;
+      player.vx += direction * boss.attackStrength * dt;
+      if (boss.kind === "crystalGuardian") player.vy -= 95 * dt;
+      if (boss.kind === "cloudTitan") player.vy += 70 * dt;
+      game.cameraKick = Math.max(game.cameraKick, boss.kind === "cloudTitan" ? 1.8 : 1.2);
+    }
+
+    const bounds = {
+      x: boss.x - boss.w * .5,
+      y: boss.y - boss.h * .5,
+      w: boss.w,
+      h: boss.h,
+    };
+    const stompedFromAbove = isBossStomp(player, bounds);
+    if (stompedFromAbove && boss.invincible <= 0) {
+      const hit = damageBoss(boss);
+      if (!hit.hit) return;
+      boss.gusting = 0;
+      player.y = bounds.y - player.h;
+      player.vy = -590;
+      player.onGround = false;
+      finale.remaining = Math.min(finale.duration, finale.remaining + 2.5);
+      burst(boss.x, boss.y, boss.hp ? "#dcefe8" : level.chapter.config.accent, boss.hp ? 24 : 42, boss.hp ? 245 : 330);
+      game.shake = Math.max(game.shake, boss.hp ? .16 : .24);
+      flashFeedback();
+      playTone(boss.hp ? 330 : 520, .12, "square", .035, boss.hp ? 160 : 310);
+      if (hit.defeated) {
+        completeChapterFinale(level);
+        showToast(boss.name + " besiegt – der Ausgang ist frei!");
+      } else {
+        showToast(boss.name + " getroffen · noch " + boss.hp + " Treffer");
+      }
+      return;
+    }
+
+    if (rectsOverlap(player, bounds) && player.invincible <= 0 && boss.invincible <= 0) {
+      const direction = playerCenterX < boss.x ? -1 : 1;
+      player.vx = direction * 470;
+      player.vy = -370;
+      player.invincible = .85;
+      game.shake = Math.max(game.shake, .12);
+      flashFeedback("danger");
+      playTone(145, .11, "sawtooth", .025, -55);
+      showToast(boss.name + " drängt Schorsch zurück – von oben springen!");
+    }
   }
 
   function updateChapterChallenge(level, player, dt) {
@@ -1305,7 +1495,8 @@
         finale.charge = Math.max(0, finale.charge - dt * .55);
       }
     } else if (finale.type === "sequence") {
-      finale.remaining = Math.max(0, finale.remaining - dt);
+      const bossFightRunning = Boolean(finale.boss?.active && !finale.boss.defeated);
+      if (!bossFightRunning) finale.remaining = Math.max(0, finale.remaining - dt);
       const next = finale.nodes[finale.progress];
       if (next && nearChapterPoint(player, next, 58)) {
         next.active = true;
@@ -1314,13 +1505,20 @@
         pulseMissionHud();
         flashFeedback();
         playTone(560 + next.index * 150, .1, "sine", .045, 120);
-        if (finale.progress >= finale.nodes.length) completeChapterFinale(level);
+        if (finale.progress >= finale.nodes.length && !activateChapterBoss(level)) completeChapterFinale(level);
       }
-      if (finale.state === "active" && finale.remaining <= 0) {
+      if (finale.boss?.active) updateChapterBoss(level, player, dt);
+      if (finale.state === "active" && !finale.boss?.active && finale.remaining <= 0) {
         resetTimedChapterFinale(level, chapter.config.failureMessage || "Die Zeit ist abgelaufen – das Finale startet noch einmal.");
       }
     } else if (finale.type === "escape") {
-      finale.remaining = Math.max(0, finale.remaining - dt);
+      updateChapterBoss(level, player, dt);
+      if (finale.state !== "active") {
+        updateMissionHud(level);
+        return;
+      }
+      const bossFightRunning = Boolean(finale.boss?.engaged && !finale.boss.defeated);
+      if (!bossFightRunning) finale.remaining = Math.max(0, finale.remaining - dt);
       if (finale.remaining <= 0) {
         resetTimedChapterFinale(
           level,
@@ -1339,7 +1537,7 @@
   function handleLockedChapterGoal(level, player) {
     const chapter = level.chapter;
     if (!chapter || chapterGoalIsOpen(level)) return false;
-    if (chapter.finale.type === "escape" && chapter.finale.state === "active") {
+    if (canCompleteEscapeAtGoal(chapter.finale)) {
       completeChapterFinale(level);
       return false;
     }
@@ -1348,7 +1546,10 @@
     if (game.time >= chapter.goalReminderAt) {
       chapter.goalReminderAt = game.time + 1.5;
       flashFeedback("danger");
-      showToast(chapter.task.complete ? chapter.finale.hint : `Noch offen: ${chapter.config.objective}`);
+      const boss = chapter.finale.boss;
+      showToast(boss?.active && !boss.defeated
+        ? "Besiege zuerst die " + boss.name + " · noch " + boss.hp + " Treffer"
+        : chapter.task.complete ? chapter.finale.hint : `Noch offen: ${chapter.config.objective}`);
       playTone(145, .1, "square", .025, -35);
     }
     return true;
@@ -1590,14 +1791,22 @@
   }
 
   function closeAllPanels() {
-    [ui.start, ui.map, ui.pause, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((panel) => { panel.hidden = true; });
+    [ui.start, ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((panel) => { panel.hidden = true; });
   }
 
   function openPanel(panel) {
-    [ui.map, ui.pause, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((item) => {
+    [ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((item) => {
       if (item !== panel) item.hidden = true;
     });
     panel.hidden = false;
+  }
+
+  function updateOptionsPanel() {
+    const profile = getRenderProfile();
+    ui.versionValue.textContent = `v${GAME_VERSION}`;
+    ui.renderModeValue.textContent = profile.performanceMode
+      ? `Flüssig · ${profile.width} × ${profile.height}`
+      : `Scharf · ${profile.width} × ${profile.height}`;
   }
 
   function pauseGame(panel = ui.pause) {
@@ -2132,6 +2341,10 @@
   }
 
   function addParticle(particle) {
+    const particleLimit = game.performanceMode ? 170 : 300;
+    if (game.particles.length >= particleLimit) {
+      game.particles.splice(0, game.particles.length - particleLimit + 1);
+    }
     game.particles.push({
       gravity: 350,
       life: .7,
@@ -2259,6 +2472,15 @@
     if (game.player) game.player.jumpBuffer = 0.14;
   }
 
+  function scheduleCanvasResize() {
+    if (resizeFrame) cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      resizeCanvas();
+      updateOptionsPanel();
+    });
+  }
+
   function frame(now) {
     const dt = Math.min(0.033, Math.max(0, (now - lastTime) / 1000));
     lastTime = now;
@@ -2303,6 +2525,16 @@
         }
         const label = debugTools.jumpToNextCheckpoint();
         if (label) showToast(`Debug-Sprung: ${label}`);
+        return;
+      }
+      if (event.code === "F5") {
+        event.preventDefault();
+        if (!debugTools.state().enabled) {
+          showToast("Aktiviere zuerst das Debug-Overlay mit F3.");
+          return;
+        }
+        const label = debugTools.jumpToNextObjective();
+        if (label) showToast(`Debug-Auftragssprung: ${label}`);
         return;
       }
       if (!pressed.has(event.code) && ["ArrowUp", "KeyW", "Space"].includes(event.code)) queueJump();
@@ -2378,6 +2610,10 @@
       else if (game.mode === "paused" && !ui.tutorial.hidden) closeChapterTutorial();
       else if (game.mode === "paused") resumeGame();
     });
+    ui.optionsButton.addEventListener("click", () => {
+      updateOptionsPanel();
+      openOverlay(ui.options);
+    });
     ui.tutorialButton.addEventListener("click", closeChapterTutorial);
     document.querySelector("#resumeButton").addEventListener("click", resumeGame);
     document.querySelector("#pauseCloseButton").addEventListener("click", resumeGame);
@@ -2420,7 +2656,13 @@
       const hasText = [config.title, config.objective, config.objectiveDone, config.finalTitle, config.finalHint, config.finalDone]
         .every((value) => typeof value === "string" && value.trim());
       const timedFinaleIsValid = config.finaleType === "charge" || Number(config.duration) > 0;
-      if (!hasThreeNodes || !hasText || !finaleTypes.has(config.finaleType) || !timedFinaleIsValid) {
+      const bossIsValid = config.bossHits == null
+        || (["sequence", "escape"].includes(config.finaleType)
+          && Number.isInteger(config.bossHits)
+          && config.bossHits > 0
+          && String(config.bossName || "").trim()
+          && Boolean(BOSS_PROFILES[config.bossKind]));
+      if (!hasThreeNodes || !hasText || !finaleTypes.has(config.finaleType) || !timedFinaleIsValid || !bossIsValid) {
         throw new Error(`Ungültiger Reiseauftrag für Level ${index + 1}: ${LEVELS[index]?.name || "Unbekannt"}`);
       }
     });
@@ -2446,13 +2688,21 @@
     bindControls();
     bindUi();
     resizeCanvas();
+    updateOptionsPanel();
     updateHud();
     game.level = createLevel(game.levelIndex);
     stage.classList.toggle("is-underwater", Boolean(game.level.underwater));
     game.player = createPlayer(game.level.start, game.level.underwater);
     game.mode = "menu";
     saveProgress();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", scheduleCanvasResize, { passive: true });
+    window.visualViewport?.addEventListener("resize", scheduleCanvasResize, { passive: true });
+    document.addEventListener("fullscreenchange", scheduleCanvasResize);
+    document.addEventListener("webkitfullscreenchange", scheduleCanvasResize);
+    if ("ResizeObserver" in window) {
+      stageResizeObserver = new ResizeObserver(scheduleCanvasResize);
+      stageResizeObserver.observe(stage);
+    }
     window.setTimeout(() => ui.loading.classList.add("is-hidden"), 550);
     requestAnimationFrame(frame);
   }
