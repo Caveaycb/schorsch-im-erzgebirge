@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=26" />
+    <link rel="stylesheet" href="styles.css?v=27" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -48,6 +48,20 @@
 
       <section class="stage" id="stage">
         <canvas id="gameCanvas" width="1280" height="720" tabindex="0" aria-label="Spielbereich"></canvas>
+
+        <aside class="mission-hud" id="missionHud" hidden aria-live="polite">
+          <span class="mission-kicker" id="missionKicker">Reiseauftrag</span>
+          <strong id="missionTitle">Aufgabe</strong>
+          <small id="missionStatus">0 / 3</small>
+          <span class="mission-progress" id="missionProgress" aria-hidden="true"></span>
+        </aside>
+
+        <div class="chapter-banner" id="chapterBanner" hidden role="status">
+          <span id="chapterBannerKicker">Aufgabe geschafft</span>
+          <strong id="chapterBannerText">Das Finale beginnt!</strong>
+        </div>
+
+        <div class="feedback-flash" id="feedbackFlash" aria-hidden="true"></div>
 
         <div class="loading" id="loadingScreen">
           <img src="assets/characters/schorsch.svg" alt="Schorsch" />
@@ -151,6 +165,19 @@
           </div>
         </section>
 
+        <section class="panel tutorial-panel" id="tutorialPanel" hidden aria-labelledby="tutorialTitle">
+          <p class="eyebrow" id="tutorialKicker">Reiseauftrag</p>
+          <span class="tutorial-mark" id="tutorialMark" aria-hidden="true">★</span>
+          <h2 id="tutorialTitle">Dein Auftrag</h2>
+          <p id="tutorialText">Hilf den Menschen vor Ort.</p>
+          <div class="tutorial-final">
+            <span>Finale</span>
+            <strong id="tutorialFinal">Am Ende wartet eine besondere Herausforderung.</strong>
+          </div>
+          <p class="tutorial-controls" id="tutorialControls">Berühre markierte Ziele, um sie zu aktivieren.</p>
+          <button class="primary-button" id="tutorialButton" type="button">Auftrag starten <span aria-hidden="true">→</span></button>
+        </section>
+
         <section class="panel skills-panel" id="skillsPanel" hidden aria-labelledby="skillsTitle">
           <div class="panel-heading">
             <div>
@@ -178,7 +205,9 @@
             <span><b id="finishSparkCount">0</b><small>Bergfunken</small></span>
             <span><b id="finishItemCount">0/5</b><small>Andenken</small></span>
             <span><b id="finishTime">0:00</b><small>Zeit</small></span>
+            <span><b id="finishBestTime">–</b><small>Bestzeit</small></span>
           </div>
+          <p class="finish-mission" id="finishMission" hidden></p>
           <button class="primary-button" id="nextLevelButton" type="button">Nächster Ort →</button>
           <button class="text-button" id="finishMapButton" type="button">Zur Levelkarte</button>
         </section>
@@ -197,6 +226,13 @@
         </div>
       </section>
     </main>
-    <script src="game.js?v=40"></script>
+    <script src="src/game-data.js?v=2"></script>
+    <script src="src/physics.js?v=2"></script>
+    <script src="src/ui.js?v=2"></script>
+    <script src="src/ui-actions.js?v=2"></script>
+    <script src="src/audio.js?v=2"></script>
+    <script src="src/rendering.js?v=2"></script>
+    <script src="src/debug.js?v=2"></script>
+    <script src="game.js?v=45"></script>
   </body>
 </html>

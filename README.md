@@ -22,7 +22,14 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 
 ## Enthalten
 
-- zehn freischaltbare Levelregionen plus das elfte Bonus-Hauptlevel „Der geflutete Stollen“
+- vollständiges Reiseauftragssystem in allen zwölf Haupt- und Bonusleveln: regionale Aufgabe, eigenes Finale, Einführung, permanenter Auftragsstatus und Abschlussfeedback
+- „Waldweg bei Seiffen“: drei Werkstattsterne bergen und an der Werkbank einen leuchtenden Schwibbogen zusammensetzen
+- „Dorf der Lichter“: Festlaternen entzünden und anschließend einen Lichterlauf gegen die Zeit absolvieren
+- „Silberner Stollen“: Grubenstützen in der richtigen Reihenfolge sichern und in einer abschließenden Lorenflucht den Ausgang erreichen
+- weitere regionale Aufträge: Mühlräder und Stromschnellen, Bahnsignale und Fahrplan, Wetterfahnen und Dachsturm, Bogenkerzen und Lichtkreis, Steinzeichen und Felstore, Burgschlüssel und Uhrwerk sowie Gipfelwimpel und Wolkenfront
+- eigene Bonusaufträge im Tauchstollen und auf der Sonnenbahn mit Druckventilen, Unterwasserringen, Solarmodulen und Ladestation
+- dauerhaft gespeicherte Bestzeiten mit Zehntelsekunden, Rekordhinweis in der Auswertung und Bestzeitanzeige auf der Levelkarte
+- zehn freischaltbare Levelregionen plus die Bonus-Hauptlevel „Der geflutete Stollen“ und „Die Sonnenbahn“
 - zehn unterschiedliche Geheimlevel: Federwerkstatt, Lichterkeller, Kristallaufzüge, Wassergrotte, Zugdepot, Dacharchiv, Laternenlabyrinth, Granitschacht, Uhrwerk und Gipfelhöhle
 - eigene Geheimlevel-Mechaniken wie Förderbänder, Lichtbrücken, Strömung, Aufwind, rutschiger Boden und fahrende Zugwagen
 - handgebautes Einstiegslevel „Waldweg bei Seiffen“ mit Werkstattpassage, Höhenweg und Geheimnis
@@ -65,4 +72,11 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - Vorschau auf einen späteren Talentpfad
 - responsive Tastatur- und Touch-Steuerung
 
-Die Dateien kommen ohne externe Bibliotheken oder Build-Schritt aus. Der Einstiegspunkt ist `index.html`, Spielphysik und Rendering liegen in `game.js`.
+## Entwicklung und Diagnose
+
+- `F3`: Debug-Overlay mit FPS, Position, Geschwindigkeit, Bewegungszustand und Hitboxen ein-/ausschalten
+- `F4`: bei aktivem Debug-Overlay zum nächsten Rastplatz springen
+- Smoke-Tests im lokalen Server unter `http://127.0.0.1:8765/tests/smoke.html` öffnen
+- die Tests prüfen Level-/Auftragsdaten, Kollisionen, Bewegungstuning, Strömungen, Landungsfeedback, Zeitformatierung und den vollständigen Browserstart
+
+Die Dateien kommen ohne externe Bibliotheken oder Build-Schritt aus. Der Einstiegspunkt ist `index.html`; `game.js` koordiniert den Ablauf, während Daten, Physik, Rendering, Audio, UI und Debug-Werkzeuge getrennt unter `src/` liegen. Weitere technische Details stehen in `ARCHITECTURE.md`.

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Schorsch · Smoke-Tests</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { max-width: 850px; margin: 0 auto; padding: 32px 20px; color: #e9f3e7; background: #102823; }
+      h1 { margin-bottom: 6px; font-family: Georgia, serif; }
+      #summary { color: #a8c8bb; }
+      ol { display: grid; gap: 8px; padding: 0; list-style: none; }
+      li { padding: 11px 13px; border: 1px solid #315f54; border-radius: 10px; background: #17362f; }
+      li.pass::before { content: "✓ "; color: #79e7aa; }
+      li.fail { border-color: #ae5260; background: #49252b; }
+      li.fail::before { content: "✕ "; color: #ff8d9b; }
+    </style>
+    <script src="../src/game-data.js"></script>
+    <script src="../src/physics.js"></script>
+    <script src="../src/ui.js"></script>
+    <script src="../src/ui-actions.js"></script>
+    <script src="../src/audio.js"></script>
+    <script src="../src/rendering.js"></script>
+    <script src="../src/debug.js"></script>
+    <script src="smoke.js" defer></script>
+  </head>
+  <body>
+    <p>Automatisierte Browserprüfung</p>
+    <h1>Schorsch Smoke-Tests</h1>
+    <p id="summary">Tests laufen …</p>
+    <ol id="results"></ol>
+  </body>
+</html>
