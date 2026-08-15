@@ -37,13 +37,18 @@
     await test("Alle Kernmodule sind geladen", () => {
       [
         "LEVELS",
+        "GAME_VERSION",
         "CAMPAIGN_CHAPTERS",
         "movementTuning",
         "landingFeedback",
+        "damageBoss",
+        "isBossStomp",
+        "canCompleteEscapeAtGoal",
         "collectUi",
         "createUiActions",
         "createAudioEngine",
         "createRenderer",
+        "computeCanvasMetrics",
         "createDebugTools",
       ]
         .forEach((key) => assert(api[key], `${key} fehlt`));
@@ -52,6 +57,10 @@
     await test("Zwölf Level besitzen zwölf Reiseaufträge", () => {
       assert(api.LEVELS.length === 12, "Levelanzahl ist nicht 12");
       assert(api.CAMPAIGN_CHAPTERS.length === api.LEVELS.length, "Aufträge und Level sind nicht vollständig");
+    });
+
+    await test("Die sichtbare Spielversion folgt SemVer", () => {
+      assert(/^\d+\.\d+\.\d+$/.test(api.GAME_VERSION), "Spielversion ist nicht im Format x.y.z");
     });
 
     await test("Jeder Reiseauftrag enthält drei Ziele und ein gültiges Finale", () => {
@@ -88,6 +97,48 @@
       assert(feedback.cameraKick <= 2.8, "Kameraimpuls ist zu stark");
     });
 
+    await test("Drei einzigartige Endbosse sind gleichmäßig über die Hauptreise verteilt", () => {
+      const bosses = api.CAMPAIGN_CHAPTERS
+        .map((chapter, index) => ({ ...chapter, level: index + 1 }))
+        .filter((chapter) => chapter.bossHits > 0);
+      const positions = bosses.map((boss) => boss.level);
+      const distances = positions.slice(1).map((position, index) => position - positions[index]);
+      assert(bosses.length === 3, `Erwartet werden 3 Endbosse, gefunden wurden ${bosses.length}`);
+      assert(positions.join(",") === "2,6,10", "Endbosse sind nicht sinnvoll über die Hauptreise verteilt");
+      assert(distances.every((distance) => distance === 4), "Endbosse stehen nicht exakt vier Level auseinander");
+      assert(new Set(bosses.map((boss) => boss.bossKind)).size === bosses.length, "Endbosse verwenden nicht drei eigene Animationstypen");
+      assert(bosses.map((boss) => boss.bossName).join(",") === "Kristallwächter,Sturmkrähe,Wolkentitan", "Endboss-Besetzung ist unvollständig");
+      bosses.forEach((config) => {
+        assert(config.duration >= 24, `${config.bossName} hat zu wenig Anlaufzeit`);
+        const boss = { hp: config.bossHits, maxHp: config.bossHits, invincible: 0, active: true, defeated: false };
+        for (let hit = 0; hit < config.bossHits; hit += 1) {
+          const result = api.damageBoss(boss);
+          boss.invincible = 0;
+          assert(result.hit, `${config.bossName} ignoriert Treffer ${hit + 1}`);
+        }
+        assert(boss.hp === 0 && !boss.active && boss.defeated, `${config.bossName} bleibt nach allen Treffern aktiv`);
+      });
+      assert(api.isBossStomp(
+        { x: 90, y: 75, prevY: 28, w: 44, h: 92, vy: 520 },
+        { x: 100, y: 150, w: 104, h: 68 },
+      ), "Ein schneller Sprung von oben wird vom Boss nicht erkannt");
+      assert(!api.isBossStomp(
+        { x: 20, y: 155, prevY: 150, w: 44, h: 92, vy: 0 },
+        { x: 100, y: 150, w: 104, h: 68 },
+      ), "Seitlicher Kontakt zählt fälschlich als Sprungtreffer");
+      assert(!api.canCompleteEscapeAtGoal({ type: "escape", state: "active", boss: {} }), "Boss-Finale wird am Ziel vorzeitig abgeschlossen");
+      assert(api.canCompleteEscapeAtGoal({ type: "escape", state: "active" }), "Normales Fluchtfinale schließt am Ziel nicht mehr ab");
+      const mineEscape = api.CAMPAIGN_CHAPTERS[2];
+      assert(mineEscape.finaleStyle === "cart" && mineEscape.bossHits == null, "Lorenflucht wird weiterhin von einem Boss blockiert");
+    });
+
+    await test("Vollbild-Canvas hält sein Pixelbudget ein", () => {
+      const metrics = api.computeCanvasMetrics(3840, 2160, 2, true);
+      assert(metrics.performanceMode, "Leistungsmodus wird im Vollbild nicht aktiv");
+      assert(metrics.width * metrics.height <= 2310000, "Vollbild-Canvas ist weiterhin zu groß");
+      assert(metrics.width / metrics.height > 1.7, "Seitenverhältnis wurde beschädigt");
+    });
+
     await test("Zeitformatierung unterstützt Zehntelsekunden", () => {
       assert(api.formatTime(65.49, true) === "1:05,4", "Bestzeitformat ist falsch");
     });
@@ -106,6 +157,7 @@
         const doc = frame.contentDocument;
         assert(doc.querySelector("#gameCanvas")?.width > 0, "Canvas wurde nicht initialisiert");
         assert(doc.querySelector("#startPanel") && !doc.querySelector("#startPanel").hidden, "Startmenü fehlt");
+        assert(doc.querySelector("#versionValue")?.textContent === `v${api.GAME_VERSION}`, "Versionsanzeige fehlt");
         assert(doc.querySelector("#loadingScreen")?.classList.contains("is-hidden"), "Ladebildschirm bleibt aktiv");
       });
     } else {

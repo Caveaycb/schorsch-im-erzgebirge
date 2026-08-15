@@ -57,6 +57,35 @@
     };
   }
 
+  function damageBoss(boss, invincibility = .72) {
+    if (!boss || boss.defeated || boss.invincible > 0 || boss.hp <= 0) {
+      return { hit: false, defeated: Boolean(boss?.defeated), hp: Math.max(0, Number(boss?.hp) || 0) };
+    }
+    boss.hp = Math.max(0, boss.hp - 1);
+    boss.invincible = Math.max(0, invincibility);
+    boss.defeated = boss.hp === 0;
+    if (boss.defeated) boss.active = false;
+    return { hit: true, defeated: boss.defeated, hp: boss.hp };
+  }
+
+  function isBossStomp(player, bounds) {
+    if (!player || !bounds) return false;
+    const previousBottom = Number(player.prevY) + Number(player.h);
+    const currentBottom = Number(player.y) + Number(player.h);
+    const descending = Number(player.vy) > 80 || currentBottom > previousBottom + 1;
+    const horizontalOverlap = player.x + player.w > bounds.x - 10
+      && player.x < bounds.x + bounds.w + 10;
+    const forgivingHitLine = bounds.y + bounds.h * .62;
+    return descending
+      && horizontalOverlap
+      && previousBottom <= forgivingHitLine
+      && currentBottom >= bounds.y;
+  }
+
+  function canCompleteEscapeAtGoal(finale) {
+    return Boolean(finale?.type === "escape" && finale.state === "active" && !finale.boss);
+  }
+
   Object.assign(window.SchorschGame ||= {}, {
     groundAt,
     applyRegionalMechanics,
@@ -65,5 +94,8 @@
     wrap,
     movementTuning,
     landingFeedback,
+    damageBoss,
+    isBossStomp,
+    canCompleteEscapeAtGoal,
   });
 })();

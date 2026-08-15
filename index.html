@@ -9,7 +9,7 @@
       content="Schorsch im Erzgebirge – ein kinderfreundliches Jump-and-Run durch Sachsen."
     />
     <title>Schorsch im Erzgebirge</title>
-    <link rel="stylesheet" href="styles.css?v=27" />
+    <link rel="stylesheet" href="styles.css?v=28" />
   </head>
   <body>
     <main class="game-shell" aria-label="Schorsch im Erzgebirge">
@@ -41,6 +41,7 @@
           </nav>
         </div>
         <div class="system-actions" aria-label="Spieleinstellungen">
+          <button class="icon-button" id="optionsButton" type="button" aria-label="Optionen öffnen">⚙</button>
           <button class="icon-button" id="soundButton" type="button" aria-label="Ton an oder aus">♪</button>
           <button class="icon-button" id="pauseButton" type="button" aria-label="Spiel pausieren">Ⅱ</button>
         </div>
@@ -165,6 +166,22 @@
           </div>
         </section>
 
+        <section class="panel options-panel" id="optionsPanel" hidden aria-labelledby="optionsTitle">
+          <button class="close-button panel-corner-close" data-close-panel type="button" aria-label="Optionen schließen">×</button>
+          <p class="eyebrow">System</p>
+          <h2 id="optionsTitle">Optionen</h2>
+          <div class="option-display" aria-label="Installierte Spielversion">
+            <span>Version</span>
+              <output id="versionValue">v0.9.1</output>
+          </div>
+          <div class="option-display">
+            <span>Darstellung</span>
+            <output id="renderModeValue">Automatisch optimiert</output>
+          </div>
+          <p class="options-note">Im Vollbild passt Schorsch die Renderauflösung automatisch an, damit das Spiel flüssig bleibt.</p>
+          <button class="secondary-button" data-close-panel type="button">Zurück zum Spiel</button>
+        </section>
+
         <section class="panel tutorial-panel" id="tutorialPanel" hidden aria-labelledby="tutorialTitle">
           <p class="eyebrow" id="tutorialKicker">Reiseauftrag</p>
           <span class="tutorial-mark" id="tutorialMark" aria-hidden="true">★</span>
@@ -226,13 +243,13 @@
         </div>
       </section>
     </main>
-    <script src="src/game-data.js?v=2"></script>
-    <script src="src/physics.js?v=2"></script>
-    <script src="src/ui.js?v=2"></script>
-    <script src="src/ui-actions.js?v=2"></script>
+    <script src="src/game-data.js?v=6"></script>
+    <script src="src/physics.js?v=4"></script>
+    <script src="src/ui.js?v=3"></script>
+    <script src="src/ui-actions.js?v=5"></script>
     <script src="src/audio.js?v=2"></script>
-    <script src="src/rendering.js?v=2"></script>
-    <script src="src/debug.js?v=2"></script>
-    <script src="game.js?v=45"></script>
+    <script src="src/rendering.js?v=6"></script>
+    <script src="src/debug.js?v=4"></script>
+    <script src="game.js?v=49"></script>
   </body>
 </html>

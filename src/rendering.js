@@ -3,6 +3,23 @@
 
   const { groundAt, hash, wrap } = window.SchorschGame;
 
+  function computeCanvasMetrics(width, height, deviceDpr = 1, fullscreen = false) {
+    const cssWidth = Math.max(1, Number(width) || 1);
+    const cssHeight = Math.max(1, Number(height) || 1);
+    const sourceDpr = Math.max(1, Number(deviceDpr) || 1);
+    const dprLimit = fullscreen ? 1.25 : 1.75;
+    const pixelBudget = fullscreen ? 2300000 : 3200000;
+    const budgetDpr = Math.sqrt(pixelBudget / (cssWidth * cssHeight));
+    const dpr = Math.max(.45, Math.min(sourceDpr, dprLimit, budgetDpr));
+    return {
+      width: Math.max(1, Math.round(cssWidth * dpr)),
+      height: Math.max(1, Math.round(cssHeight * dpr)),
+      dpr,
+      fullscreen,
+      performanceMode: fullscreen || dpr + .04 < Math.min(sourceDpr, 1.75),
+    };
+  }
+
   function createRenderer(runtime) {
     const {
       canvas,
@@ -18,6 +35,18 @@
       getBackdropImage,
       createLevel,
     } = runtime;
+    let renderProfile = computeCanvasMetrics(canvas.width, canvas.height, 1, false);
+
+    function groundAtOrNearest(level, x) {
+      const directGround = groundAt(level, x);
+      if (directGround) return directGround;
+      const grounds = level.platforms.filter((platform) => platform.ground);
+      return grounds.reduce((nearest, candidate) => {
+        const candidateDistance = Math.abs(candidate.x + candidate.w * .5 - x);
+        const nearestDistance = Math.abs(nearest.x + nearest.w * .5 - x);
+        return candidateDistance < nearestDistance ? candidate : nearest;
+      });
+    }
 
   function draw() {
     ctx.save();
@@ -98,7 +127,8 @@
       ctx.stroke();
     }
     ctx.globalCompositeOperation = "source-over";
-    for (let i = 0; i < 32; i += 1) {
+    const bubbleCount = renderProfile.performanceMode ? 18 : 32;
+    for (let i = 0; i < bubbleCount; i += 1) {
       const drift = game.time * (10 + i % 4 * 4);
       const x = wrap(hash(i * 43 + level.index) * visibleWidth - game.cameraX * .025 + Math.sin(game.time + i) * 12, -20, visibleWidth + 20);
       const y = wrap(690 - hash(i * 71) * 640 - drift, 35, 690);
@@ -151,9 +181,10 @@
     ctx.fillRect(0, 220, visibleWidth, H - 220);
 
     ctx.globalAlpha = night ? .16 : .13;
-    ctx.filter = "blur(4px)";
+    ctx.filter = renderProfile.performanceMode ? "none" : "blur(4px)";
     const parallax = game.cameraX * .16;
-    for (let i = -1; i < 8; i += 1) {
+    const farCount = renderProfile.performanceMode ? 6 : 8;
+    for (let i = -1; i < farCount; i += 1) {
       const x = wrap(i * 190 - parallax, -150, visibleWidth + 160);
       const h = 96 + hash(i * 19 + level.index * 13) * 88;
       ctx.fillStyle = night ? "#1c3740" : "#315943";
@@ -166,10 +197,11 @@
     }
 
     ctx.globalAlpha = night ? .15 : .12;
-    ctx.filter = "blur(8px)";
+    ctx.filter = renderProfile.performanceMode ? "none" : "blur(8px)";
     ctx.fillStyle = night ? "#172c36" : "#254d39";
     const nearShift = game.cameraX * .31;
-    for (let i = -1; i < 6; i += 1) {
+    const nearCount = renderProfile.performanceMode ? 4 : 6;
+    for (let i = -1; i < nearCount; i += 1) {
       const x = wrap(i * 280 - nearShift, -180, visibleWidth + 200);
       ctx.beginPath();
       ctx.ellipse(x + 70, H - 36, 100, 85 + (i % 2) * 24, 0, 0, TAU);
@@ -188,7 +220,8 @@
     ctx.fillStyle = mist;
     ctx.fillRect(0, 390, visibleWidth, 270);
     ctx.globalCompositeOperation = "lighter";
-    for (let i = 0; i < 22; i += 1) {
+    const moteCount = renderProfile.performanceMode ? 12 : 22;
+    for (let i = 0; i < moteCount; i += 1) {
       const x = wrap(hash(i * 17 + level.index) * visibleWidth + game.time * (4 + i % 3), -20, visibleWidth + 20);
       const y = 115 + hash(i * 37 + level.index * 3) * 470 + Math.sin(game.time * .8 + i) * 10;
       const pulse = .22 + Math.sin(game.time * 2 + i * .7) * .09;
@@ -546,6 +579,12 @@
       if (finale.type === "charge") drawWorkshopFinale(finale, config);
       if (finale.type === "sequence") drawLightRunFinale(finale, config);
       if (finale.type === "escape") drawMineEscapeFinale(finale, config);
+      if (finale.boss
+        && !finale.boss.defeated
+        && finale.state !== "complete"
+        && (!finale.boss.afterMechanic || finale.boss.active)) {
+        drawChapterBoss(finale.boss, config);
+      }
     }
 
     if (finale.state !== "complete") {
@@ -689,7 +728,7 @@
     if (finale.state === "active" && game.player) {
       const danger = finale.duration ? 1 - finale.remaining / finale.duration : 0;
       const cartX = Math.max(finale.startX - 180, game.player.x - (250 - danger * 150));
-      const ground = groundAtX(game.level, cartX);
+      const ground = groundAtOrNearest(game.level, cartX);
       ctx.save();
       ctx.translate(cartX, ground.y - 34);
       if (finale.style === "wind") {
@@ -717,6 +756,238 @@
       }
       ctx.restore();
     }
+
+  }
+
+  function drawBossAttackAura(boss, config) {
+    if (boss.gusting <= 0) return;
+    const progress = 1 - boss.gusting / Math.max(.01, boss.attackDuration || .4);
+    ctx.save();
+    ctx.globalAlpha *= .76 * (1 - progress * .45);
+
+    if (boss.kind === "crystalGuardian") {
+      ctx.rotate(game.time * 1.8);
+      const shardCount = game.performanceMode ? 6 : 10;
+      for (let shard = 0; shard < shardCount; shard += 1) {
+        const angle = shard * TAU / shardCount;
+        const radius = 52 + progress * 92;
+        ctx.save();
+        ctx.rotate(angle);
+        ctx.translate(radius, 0);
+        ctx.rotate(Math.PI / 4 + game.time * 2.2);
+        ctx.fillStyle = shard % 2 ? "rgba(135,226,238,.66)" : "rgba(226,251,255,.72)";
+        ctx.fillRect(-5, -5, 10, 10);
+        ctx.restore();
+      }
+      ctx.strokeStyle = "rgba(125,222,235,.62)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 48 + progress * 72, 0, TAU);
+      ctx.stroke();
+    } else if (boss.kind === "cloudTitan") {
+      ctx.strokeStyle = "rgba(255,239,143,.82)";
+      ctx.lineWidth = 5;
+      const boltCount = game.performanceMode ? 3 : 5;
+      for (let bolt = 0; bolt < boltCount; bolt += 1) {
+        const angle = bolt * TAU / boltCount + game.time * .35;
+        const inner = 55 + progress * 25;
+        const outer = 95 + progress * 85;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle + .14) * (inner + outer) * .5, Math.sin(angle + .14) * (inner + outer) * .5);
+        ctx.lineTo(Math.cos(angle - .1) * outer, Math.sin(angle - .1) * outer);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(232,246,248,.48)";
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.arc(0, 0, 68 + progress * 110, 0, TAU);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = "rgba(235,247,240,.62)";
+      ctx.lineWidth = 5;
+      for (let ring = 0; ring < 4; ring += 1) {
+        const radius = 46 + ring * 24 + progress * 32;
+        ctx.beginPath();
+        ctx.arc(0, 1, radius, -.7, .7);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawStormCrowBoss(boss, config, hitFlash) {
+    const flap = Math.sin(game.time * 9) * .26;
+    ctx.fillStyle = "#40545d";
+    ctx.strokeStyle = "#243a42";
+    ctx.lineWidth = 4;
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.scale(side, 1);
+      ctx.rotate(.18 + flap);
+      ctx.beginPath();
+      ctx.moveTo(22, -6);
+      ctx.quadraticCurveTo(72, -38, 67, 11);
+      ctx.quadraticCurveTo(52, 4, 43, 22);
+      ctx.quadraticCurveTo(34, 8, 21, 17);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(210,232,226,.3)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(29, 2); ctx.quadraticCurveTo(48, -14, 62, -13);
+      ctx.moveTo(31, 9); ctx.quadraticCurveTo(49, -1, 61, 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.fillStyle = hitFlash ? "#fff1c7" : "#536b73";
+    ctx.strokeStyle = "#243a42";
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.ellipse(0, 3, 31, 25, 0, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#344850";
+    ctx.beginPath();
+    ctx.moveTo(-15, 22); ctx.lineTo(-5, 40 + Math.sin(game.time * 8) * 4); ctx.lineTo(2, 22);
+    ctx.moveTo(5, 22); ctx.lineTo(13, 39 - Math.sin(game.time * 8) * 4); ctx.lineTo(19, 18);
+    ctx.fill();
+    const blink = Math.sin(game.time * 2.7) > .96 ? 1 : 7;
+    ctx.fillStyle = "#d8e7df";
+    ctx.beginPath(); ctx.ellipse(-10, -6, 7, blink, 0, 0, TAU); ctx.ellipse(10, -6, 7, blink, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#1e3036";
+    ctx.beginPath(); ctx.arc(-9, -5, 3, 0, TAU); ctx.arc(9, -5, 3, 0, TAU); ctx.fill();
+    ctx.fillStyle = config.accent;
+    ctx.beginPath(); ctx.moveTo(-7, 5); ctx.lineTo(12, 10); ctx.lineTo(-7, 15); ctx.closePath(); ctx.fill();
+  }
+
+  function drawCrystalGuardianBoss(boss, config, hitFlash) {
+    const pulse = .92 + Math.sin(game.time * 4.8) * .08;
+    const orbitCount = game.performanceMode ? 4 : 7;
+    for (let shard = 0; shard < orbitCount; shard += 1) {
+      const angle = game.time * (shard % 2 ? -.9 : .9) + shard * TAU / orbitCount;
+      const radius = 51 + Math.sin(game.time * 2.4 + shard) * 8;
+      ctx.save();
+      ctx.translate(Math.cos(angle) * radius, Math.sin(angle) * radius * .48);
+      ctx.rotate(angle + game.time * 1.7);
+      ctx.fillStyle = shard % 2 ? "#75c9d7" : "#c8f3ee";
+      ctx.strokeStyle = "#315b68";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -14); ctx.lineTo(8, 0); ctx.lineTo(0, 14); ctx.lineTo(-8, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.scale(side, 1);
+      ctx.translate(35, 2 + Math.sin(game.time * 4 + side) * 5);
+      ctx.rotate(.18 + Math.sin(game.time * 3.2) * .18);
+      ctx.fillStyle = hitFlash ? "#fff1c7" : "#4d8791";
+      ctx.strokeStyle = "#244c59";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-7, -13); ctx.lineTo(16, -6); ctx.lineTo(22, 11); ctx.lineTo(-1, 17); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = hitFlash ? "#fff1c7" : "#477985";
+    ctx.strokeStyle = "#213f4c";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, -39); ctx.lineTo(31, -14); ctx.lineTo(27, 25); ctx.lineTo(0, 39); ctx.lineTo(-27, 25); ctx.lineTo(-31, -14); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = config.accent;
+    ctx.shadowColor = "#9ff4f2";
+    ctx.shadowBlur = 18 + Math.sin(game.time * 6) * 6;
+    ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(17, 2); ctx.lineTo(0, 25); ctx.lineTo(-17, 2); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#dff9f3";
+    ctx.beginPath(); ctx.moveTo(-18, -16); ctx.lineTo(-4, -12); ctx.lineTo(-8, -4); ctx.closePath(); ctx.moveTo(18, -16); ctx.lineTo(4, -12); ctx.lineTo(8, -4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = "rgba(221,252,247,.7)";
+    ctx.lineWidth = 2;
+    const cracks = Math.max(0, boss.maxHp - boss.hp);
+    for (let crack = 0; crack < cracks; crack += 1) {
+      const x = -14 + crack * 13;
+      ctx.beginPath(); ctx.moveTo(x, 9); ctx.lineTo(x - 7, 19); ctx.lineTo(x + 1, 27); ctx.stroke();
+    }
+  }
+
+  function drawCloudTitanBoss(boss, config, hitFlash) {
+    const breathe = 1 + Math.sin(game.time * 2.7) * .045;
+    ctx.save();
+    ctx.scale(breathe, 2 - breathe);
+    ctx.fillStyle = hitFlash ? "#fff1c7" : "#d9e5e4";
+    ctx.strokeStyle = "#536f76";
+    ctx.lineWidth = 4;
+    const clouds = [[-29,5,29], [0,-7,36], [30,6,28], [-11,21,31], [21,21,29]];
+    for (const [x, y, radius] of clouds) {
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, TAU); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+
+    for (const side of [-1, 1]) {
+      const swing = Math.sin(game.time * 3.4 + side) * .22;
+      ctx.save();
+      ctx.scale(side, 1);
+      ctx.rotate(swing);
+      ctx.fillStyle = "#b9ccce";
+      ctx.strokeStyle = "#536f76";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.ellipse(51, 12, 25, 17, .2, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(69, 22, 13, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.fillStyle = "#36515a";
+    ctx.beginPath(); ctx.ellipse(-14, -7, 7, 10, -.14, 0, TAU); ctx.ellipse(14, -7, 7, 10, .14, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#fff0a0";
+    ctx.beginPath(); ctx.arc(-13, -8, 3, 0, TAU); ctx.arc(13, -8, 3, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#6b8588";
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 14, 15, .2, Math.PI - .2); ctx.stroke();
+
+    ctx.fillStyle = config.accent;
+    ctx.strokeStyle = "#734a45";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-31, -27); ctx.lineTo(-20, -51); ctx.lineTo(-7, -32); ctx.lineTo(5, -55); ctx.lineTo(17, -32); ctx.lineTo(31, -49); ctx.lineTo(28, -24); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    const sparkCount = game.performanceMode ? 3 : 6;
+    ctx.fillStyle = "#ffed85";
+    for (let spark = 0; spark < sparkCount; spark += 1) {
+      const angle = game.time * 1.4 + spark * TAU / sparkCount;
+      const radius = 58 + Math.sin(game.time * 3 + spark) * 9;
+      ctx.beginPath(); ctx.arc(Math.cos(angle) * radius, Math.sin(angle) * radius * .52, 3 + spark % 2, 0, TAU); ctx.fill();
+    }
+  }
+
+  function drawBossHealthBar(boss, config) {
+    const width = boss.kind === "cloudTitan" ? 150 : 132;
+    const barY = -boss.h * .5 - 31;
+    const hpRatio = boss.maxHp ? boss.hp / boss.maxHp : 0;
+    ctx.fillStyle = "rgba(24,42,44,.88)";
+    ctx.beginPath(); ctx.roundRect(-width * .5, barY, width, 18, 7); ctx.fill();
+    ctx.fillStyle = config.accent;
+    ctx.beginPath(); ctx.roundRect(-width * .5 + 4, barY + 4, (width - 8) * hpRatio, 10, 4); ctx.fill();
+    ctx.fillStyle = "#fff7d3";
+    ctx.font = "900 10px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(boss.name.toUpperCase(), 0, barY - 9);
+  }
+
+  function drawChapterBoss(boss, config) {
+    const hitFlash = boss.invincible > 0 && Math.floor(game.time * 18) % 2 === 0;
+    ctx.save();
+    ctx.translate(boss.x, boss.y);
+    ctx.globalAlpha = boss.active ? (hitFlash ? .5 : 1) : .72;
+    drawBossAttackAura(boss, config);
+    if (boss.kind === "crystalGuardian") drawCrystalGuardianBoss(boss, config, hitFlash);
+    else if (boss.kind === "cloudTitan") drawCloudTitanBoss(boss, config, hitFlash);
+    else drawStormCrowBoss(boss, config, hitFlash);
+    drawBossHealthBar(boss, config);
+    ctx.restore();
   }
 
   function drawForegroundDepth(level) {
@@ -3239,9 +3510,19 @@
 
   function resizeCanvas() {
     const rect = stage.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.max(1, Math.round(rect.width * dpr));
-    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    const fullscreen = Boolean(
+      document.fullscreenElement
+      || document.webkitFullscreenElement
+      || window.matchMedia?.("(display-mode: fullscreen)")?.matches
+      || (window.screen
+        && Math.abs(window.innerWidth - window.screen.width) < 10
+        && window.innerHeight >= window.screen.height * .86),
+    );
+    renderProfile = computeCanvasMetrics(rect.width, rect.height, window.devicePixelRatio || 1, fullscreen);
+    game.performanceMode = renderProfile.performanceMode;
+    if (canvas.width !== renderProfile.width) canvas.width = renderProfile.width;
+    if (canvas.height !== renderProfile.height) canvas.height = renderProfile.height;
+    document.body.classList.toggle("is-performance-mode", renderProfile.performanceMode);
   }
 
   function getViewWidth() {
@@ -3249,16 +3530,21 @@
     return Math.max(320, H * (canvas.width / canvas.height));
   }
 
+  function getRenderProfile() {
+    return { ...renderProfile };
+  }
+
 
     return {
       draw,
       resizeCanvas,
       getViewWidth,
+      getRenderProfile,
       currentOutfitLoadout,
       singleOutfitLoadout,
       renderOutfitVariantInto,
     };
   }
 
-  Object.assign(window.SchorschGame ||= {}, { createRenderer });
+  Object.assign(window.SchorschGame ||= {}, { computeCanvasMetrics, createRenderer });
 })();

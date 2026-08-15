@@ -54,6 +54,46 @@
       return target.label;
     }
 
+    function placePlayer(target, label, downwardSpeed = 0) {
+      const player = game.player;
+      if (!player || !target) return null;
+      player.x = Math.max(0, target.x - player.w * .5);
+      player.y = target.y - player.h * .5;
+      player.prevY = player.y;
+      player.vx = 0;
+      player.vy = downwardSpeed;
+      player.onGround = false;
+      player.groundId = null;
+      player.invincible = Math.max(player.invincible, .35);
+      game.cameraX = Math.max(0, player.x - 260);
+      game.cameraY = 0;
+      game.cameraLookX = 0;
+      game.cameraKick = 0;
+      return label;
+    }
+
+    function jumpToNextObjective() {
+      const level = game.level;
+      const chapter = level?.chapter;
+      const player = game.player;
+      if (!chapter || !player) return null;
+      const nextTask = chapter.task.nodes.find((node) => !node.active);
+      if (nextTask) return placePlayer(nextTask, nextTask.name);
+      const finale = chapter.finale;
+      if (finale.state === "ready") {
+        return placePlayer({ x: finale.startX + player.w, y: finale.startY - player.h * .5 }, "Finale-Start");
+      }
+      if (finale.state === "active" && finale.type === "sequence") {
+        const nextFinaleNode = finale.nodes.find((node) => !node.active);
+        if (nextFinaleNode) return placePlayer(nextFinaleNode, `Finalziel ${nextFinaleNode.index + 1}`);
+      }
+      if (finale.state === "active" && finale.boss?.active) {
+        const boss = finale.boss;
+        return placePlayer({ x: boss.x, y: boss.y - boss.h * .5 - player.h * .5 - 24 }, boss.name, 760);
+      }
+      return placePlayer({ x: level.goal.x + level.goal.w * .5, y: level.goal.y + level.goal.h - player.h * .5 }, "Ziel");
+    }
+
     function strokeRect(box, color, width = 2) {
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
@@ -123,7 +163,7 @@
         `x ${player?.x.toFixed(1) ?? "–"}  y ${player?.y.toFixed(1) ?? "–"}`,
         `vx ${player?.vx.toFixed(1) ?? "–"}  vy ${player?.vy.toFixed(1) ?? "–"}`,
         `state ${player?.state || "–"}  ground ${player?.onGround ? "yes" : "no"}`,
-        `F3 Overlay · F4 nächster Checkpoint`,
+        `F3 Overlay · F4 Checkpoint · F5 Auftragsziel`,
       ];
       rows.forEach((row, index) => ctx.fillText(row, x + 14, 57 + index * 19, panelWidth - 28));
       ctx.restore();
@@ -143,7 +183,7 @@
       return { enabled, fps, checkpointCursor };
     }
 
-    return { toggle, sample, draw, jumpToNextCheckpoint, state };
+    return { toggle, sample, draw, jumpToNextCheckpoint, jumpToNextObjective, state };
   }
 
   Object.assign(window.SchorschGame ||= {}, { createDebugTools });
