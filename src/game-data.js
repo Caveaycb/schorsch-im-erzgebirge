@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const GAME_VERSION = "0.9.1";
+  const GAME_VERSION = "0.9.2";
 
   const LEVELS = [
     { name: "Waldweg bei Seiffen", short: "Seiffen", subtitle: "Zwischen Fichten und Werkstätten", accent: "#3f8a65", sky: ["#8ed3cf", "#d9efe1"], ground: "#537b4a", mood: "forest", backdrop: "level-01" },

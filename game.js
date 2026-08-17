@@ -97,6 +97,7 @@
   const pressed = new Set();
   const held = { left: false, right: false, jump: false, down: false };
   let lastTime = performance.now();
+  let frameAccumulator = 0;
   let restartTimer = 0;
   let resizeFrame = 0;
   let stageResizeObserver = null;
@@ -167,7 +168,7 @@
     getBackdropImage,
     createLevel,
   });
-  const { draw, resizeCanvas, getViewWidth, getRenderProfile, currentOutfitLoadout, singleOutfitLoadout, renderOutfitVariantInto } = renderer;
+  const { draw, resizeCanvas, sampleRenderPerformance, getViewWidth, getRenderProfile, currentOutfitLoadout, singleOutfitLoadout, renderOutfitVariantInto } = renderer;
   const debugTools = createDebugTools({ canvas, ctx, game, H, getViewWidth });
   const uiActions = createUiActions({
     ui,
@@ -2482,10 +2483,18 @@
   }
 
   function frame(now) {
-    const dt = Math.min(0.033, Math.max(0, (now - lastTime) / 1000));
+    const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
     lastTime = now;
     debugTools.sample(dt);
-    update(dt);
+    sampleRenderPerformance(dt);
+    frameAccumulator = Math.min(.12, frameAccumulator + dt);
+    const fixedStep = 1 / 60;
+    let steps = 0;
+    while (frameAccumulator >= fixedStep && steps < 6) {
+      update(fixedStep);
+      frameAccumulator -= fixedStep;
+      steps += 1;
+    }
     draw();
     debugTools.draw();
     requestAnimationFrame(frame);

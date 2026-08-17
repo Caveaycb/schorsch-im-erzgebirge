@@ -3,20 +3,24 @@
 
   const { groundAt, hash, wrap } = window.SchorschGame;
 
-  function computeCanvasMetrics(width, height, deviceDpr = 1, fullscreen = false) {
+  function computeCanvasMetrics(width, height, deviceDpr = 1, fullscreen = false, qualityScale = 1) {
     const cssWidth = Math.max(1, Number(width) || 1);
     const cssHeight = Math.max(1, Number(height) || 1);
     const sourceDpr = Math.max(1, Number(deviceDpr) || 1);
-    const dprLimit = fullscreen ? 1.25 : 1.75;
-    const pixelBudget = fullscreen ? 2300000 : 3200000;
+    const adaptiveScale = Math.max(.62, Math.min(1, Number(qualityScale) || 1));
+    const dprLimit = (fullscreen ? 1 : 1.6) * adaptiveScale;
+    // Die Spielwelt ist für 1280 × 720 entworfen. Mehr interne Pixel machen
+    // das Vollbild kaum schöner, vervielfachen aber Bildskalierung und Blur-Kosten.
+    const pixelBudget = (fullscreen ? 1280 * 720 : 2600000) * adaptiveScale ** 2;
     const budgetDpr = Math.sqrt(pixelBudget / (cssWidth * cssHeight));
-    const dpr = Math.max(.45, Math.min(sourceDpr, dprLimit, budgetDpr));
+    const dpr = Math.max(.25, Math.min(sourceDpr, dprLimit, budgetDpr));
     return {
       width: Math.max(1, Math.round(cssWidth * dpr)),
       height: Math.max(1, Math.round(cssHeight * dpr)),
       dpr,
       fullscreen,
-      performanceMode: fullscreen || dpr + .04 < Math.min(sourceDpr, 1.75),
+      adaptiveScale,
+      performanceMode: fullscreen || adaptiveScale < .99 || dpr + .04 < Math.min(sourceDpr, 1.6),
     };
   }
 
@@ -36,6 +40,10 @@
       createLevel,
     } = runtime;
     let renderProfile = computeCanvasMetrics(canvas.width, canvas.height, 1, false);
+    let adaptiveScale = 1;
+    let averageFrameTime = 1 / 60;
+    let slowFrameTime = 0;
+    let fastFrameTime = 0;
 
     function groundAtOrNearest(level, x) {
       const directGround = groundAt(level, x);
@@ -127,7 +135,7 @@
       ctx.stroke();
     }
     ctx.globalCompositeOperation = "source-over";
-    const bubbleCount = renderProfile.performanceMode ? 18 : 32;
+    const bubbleCount = renderProfile.performanceMode ? 10 : 32;
     for (let i = 0; i < bubbleCount; i += 1) {
       const drift = game.time * (10 + i % 4 * 4);
       const x = wrap(hash(i * 43 + level.index) * visibleWidth - game.cameraX * .025 + Math.sin(game.time + i) * 12, -20, visibleWidth + 20);
@@ -159,7 +167,7 @@
     else if (!hasDedicatedBackdrop && level.mood === "summit") ctx.filter = "brightness(1.06) saturate(.82)";
     ctx.drawImage(image, x, y, width, height);
     ctx.filter = "none";
-    drawBackdropDepth(level, visibleWidth);
+    if (!renderProfile.performanceMode) drawBackdropDepth(level, visibleWidth);
 
     const readability = ctx.createLinearGradient(0, 250, 0, H);
     readability.addColorStop(0, "rgba(18,42,38,0)");
@@ -220,7 +228,7 @@
     ctx.fillStyle = mist;
     ctx.fillRect(0, 390, visibleWidth, 270);
     ctx.globalCompositeOperation = "lighter";
-    const moteCount = renderProfile.performanceMode ? 12 : 22;
+    const moteCount = renderProfile.performanceMode ? 6 : 22;
     for (let i = 0; i < moteCount; i += 1) {
       const x = wrap(hash(i * 17 + level.index) * visibleWidth + game.time * (4 + i % 3), -20, visibleWidth + 20);
       const y = 115 + hash(i * 37 + level.index * 3) * 470 + Math.sin(game.time * .8 + i) * 10;
@@ -416,9 +424,14 @@
     for (const spring of level.springs) {
       if (spring.x + spring.w >= left && spring.x <= right) drawSpring(spring, level);
     }
-    for (const checkpoint of level.checkpoints || [level.checkpoint]) drawCheckpoint(checkpoint, level);
-    if (level.secretEntrance && !level.secret?.used) drawSecretEntrance(level.secretEntrance, level);
-    drawGoal(level.goal, level);
+    for (const checkpoint of level.checkpoints || [level.checkpoint]) {
+      if (checkpoint.x >= left && checkpoint.x <= right) drawCheckpoint(checkpoint, level);
+    }
+    if (level.secretEntrance
+      && !level.secret?.used
+      && level.secretEntrance.x + level.secretEntrance.w >= left
+      && level.secretEntrance.x <= right) drawSecretEntrance(level.secretEntrance, level);
+    if (level.goal.x + level.goal.w >= left && level.goal.x <= right) drawGoal(level.goal, level);
     if (level.puzzle) drawPuzzleChallenge(level.puzzle, level);
     if (level.chapter) drawChapterChallenge(level.chapter, level);
     for (const crystal of level.collectibles) {
@@ -442,20 +455,26 @@
 
   function drawPuzzleChallenge(puzzle, level) {
     const firstNode = puzzle.nodes[0];
+    const visibleWidth = getViewWidth();
+    const left = game.cameraX - 100;
+    const right = game.cameraX + visibleWidth + 100;
     ctx.save();
-    ctx.font = "800 10px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(20,48,43,.76)";
-    ctx.beginPath(); ctx.roundRect(firstNode.x - 58, firstNode.y - 76, 116, 20, 8); ctx.fill();
-    ctx.fillStyle = puzzle.solved ? "#dff5b8" : "#fff4c2";
-    ctx.fillText(puzzle.solved ? "WEG FREI" : puzzle.name.toUpperCase(), firstNode.x, firstNode.y - 62);
+    if (firstNode.x >= left && firstNode.x <= right) {
+      ctx.font = "800 10px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(20,48,43,.76)";
+      ctx.beginPath(); ctx.roundRect(firstNode.x - 58, firstNode.y - 76, 116, 20, 8); ctx.fill();
+      ctx.fillStyle = puzzle.solved ? "#dff5b8" : "#fff4c2";
+      ctx.fillText(puzzle.solved ? "WEG FREI" : puzzle.name.toUpperCase(), firstNode.x, firstNode.y - 62);
+    }
 
     for (const node of puzzle.nodes) {
+      if (node.x < left || node.x > right) continue;
       const glow = node.active || puzzle.solved;
       ctx.save();
       ctx.translate(node.x, node.y);
       ctx.shadowColor = glow ? "#ffe27a" : "rgba(255,233,155,.4)";
-      ctx.shadowBlur = glow ? 16 : 5;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : glow ? 16 : 5;
 
       if (puzzle.id === "crystalChime") {
         ctx.fillStyle = glow ? "#ffd75c" : "#6ea4ad";
@@ -520,15 +539,19 @@
 
   function drawChapterChallenge(chapter, level) {
     const { task, finale, config } = chapter;
+    const visibleWidth = getViewWidth();
+    const left = game.cameraX - 100;
+    const right = game.cameraX + visibleWidth + 100;
     ctx.save();
 
     for (const node of task.nodes) {
+      if (node.x < left || node.x > right) continue;
       const glow = node.active ? .45 : .72 + Math.sin(game.time * 4 + node.pulse) * .18;
       ctx.save();
       ctx.translate(node.x, node.y);
       ctx.globalAlpha = node.active ? .72 : 1;
       ctx.shadowColor = config.accent;
-      ctx.shadowBlur = node.active ? 7 : 16 * glow;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : node.active ? 7 : 16 * glow;
 
       if (config.taskStyle === "star") {
         ctx.fillStyle = node.active ? "#6f8d75" : "#e4b34d";
@@ -587,7 +610,7 @@
       }
     }
 
-    if (finale.state !== "complete") {
+    if (finale.state !== "complete" && level.goal.x + level.goal.w >= left && level.goal.x <= right) {
       ctx.save();
       ctx.translate(level.goal.x + level.goal.w * .5, level.goal.y - 30);
       ctx.fillStyle = "rgba(36,48,44,.9)";
@@ -1006,6 +1029,13 @@
     edgeShade.addColorStop(1, "rgba(9,25,19,.13)");
     ctx.fillStyle = edgeShade;
     ctx.fillRect(0, 0, visibleWidth, H);
+
+    // Die unscharfen Randpflanzen kosten im großen Canvas überproportional viel.
+    // Die beiden leichten Farbverläufe erhalten die Tiefe auch im Flüssig-Modus.
+    if (renderProfile.performanceMode) {
+      ctx.restore();
+      return;
+    }
 
     ctx.globalAlpha = level.mood === "mine" ? .18 : .09;
     ctx.filter = "blur(5px)";
@@ -1447,7 +1477,7 @@
     if (!platform.ground) {
       ctx.globalAlpha = .23;
       ctx.fillStyle = "#132c25";
-      ctx.filter = "blur(3px)";
+      ctx.filter = renderProfile.performanceMode ? "none" : "blur(3px)";
       ctx.beginPath();
       ctx.ellipse(platform.x + platform.w * .53, platform.y + 38, Math.min(92, platform.w * .38), 9, 0, 0, TAU);
       ctx.fill();
@@ -1457,7 +1487,7 @@
     if (platform.toggle) {
       ctx.globalAlpha = platform.visibility ?? 1;
       ctx.shadowColor = "#ffe178";
-      ctx.shadowBlur = 10 * (platform.visibility ?? 1);
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : 10 * (platform.visibility ?? 1);
     }
     if (platform.type === "train") {
       drawTrainPlatform(platform, level);
@@ -1804,7 +1834,7 @@
     crystalGradient.addColorStop(.72, "#ef8b0d");
     crystalGradient.addColorStop(1, "#b94b0c");
     ctx.shadowColor = "#ffb51f";
-    ctx.shadowBlur = 24;
+    ctx.shadowBlur = renderProfile.performanceMode ? 0 : 24;
     ctx.fillStyle = crystalGradient;
     ctx.beginPath();
     ctx.moveTo(x, y - 21); ctx.lineTo(x + 14, y - 5); ctx.lineTo(x + 8, y + 18); ctx.lineTo(x - 8, y + 18); ctx.lineTo(x - 14, y - 5); ctx.closePath();
@@ -1839,7 +1869,7 @@
     ctx.translate(life.x, life.y + bob);
     ctx.scale(pulse, pulse);
     ctx.shadowColor = "#ff6174";
-    ctx.shadowBlur = 22;
+    ctx.shadowBlur = renderProfile.performanceMode ? 0 : 22;
     const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 25);
     glow.addColorStop(0, "rgba(255,246,208,.95)");
     glow.addColorStop(1, "rgba(255,118,132,.08)");
@@ -1935,7 +1965,7 @@
       ctx.translate(x, y);
       ctx.scale(pulse, 2 - pulse);
       ctx.shadowColor = "#55e0d8";
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : 18;
       const jelly = ctx.createRadialGradient(-6, -8, 2, 0, 0, 31);
       jelly.addColorStop(0, "rgba(133,239,230,.88)");
       jelly.addColorStop(1, "rgba(45,112,126,.78)");
@@ -1967,7 +1997,7 @@
       const rayWiggle = Math.sin(game.time * hazard.speed * 6 + hazard.phase) * .12;
       ctx.translate(x, y);
       ctx.shadowColor = "rgba(255,185,63,.82)";
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : 16;
       ctx.strokeStyle = "#e88932";
       ctx.lineWidth = 4;
       ctx.lineCap = "round";
@@ -2022,7 +2052,7 @@
     ctx.beginPath(); ctx.ellipse(x, y + 27, 30, 8, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = 1;
     ctx.shadowColor = cloud.dark;
-    ctx.shadowBlur = 7;
+    ctx.shadowBlur = renderProfile.performanceMode ? 0 : 7;
     ctx.fillStyle = cloud.dark;
     for (let i = 0; i < 7; i += 1) {
       const angle = (i / 7) * TAU;
@@ -2073,7 +2103,7 @@
     ctx.closePath(); ctx.fill();
     if (checkpoint.active) {
       ctx.shadowColor = "#ffd35f";
-      ctx.shadowBlur = 25;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : 25;
       ctx.fillStyle = "#fff4b4";
       ctx.beginPath(); ctx.arc(checkpoint.x + 4, checkpoint.y, 6, 0, TAU); ctx.fill();
     }
@@ -2089,7 +2119,7 @@
     ctx.save();
     const glow = .6 + Math.sin(game.time * 2.2) * .08;
     ctx.shadowColor = "#f0b84c";
-    ctx.shadowBlur = discovered ? 24 : 12;
+    ctx.shadowBlur = renderProfile.performanceMode ? 0 : discovered ? 24 : 12;
     ctx.fillStyle = "#263a35";
     ctx.beginPath();
     ctx.roundRect(entrance.x, entrance.y + 18, entrance.w, entrance.h - 18, 24);
@@ -2120,7 +2150,7 @@
     if (level.underwater) {
       ctx.translate(goal.x + goal.w / 2, goal.y + goal.h / 2);
       ctx.shadowColor = "#67eee5";
-      ctx.shadowBlur = 30;
+      ctx.shadowBlur = renderProfile.performanceMode ? 0 : 30;
       ctx.strokeStyle = "#79eee5";
       ctx.lineWidth = 8;
       ctx.beginPath(); ctx.ellipse(0, 0, 30, 50, 0, 0, TAU); ctx.stroke();
@@ -3270,7 +3300,10 @@
   }
 
   function drawParticles() {
+    const left = game.cameraX - 80;
+    const right = game.cameraX + getViewWidth() + 80;
     for (const particle of game.particles) {
+      if (particle.x < left || particle.x > right || particle.y < -80 || particle.y > H + 80) continue;
       ctx.save();
       const fade = Math.max(0, Math.min(1, particle.life / particle.maxLife));
       ctx.globalAlpha = fade;
@@ -3304,7 +3337,7 @@
         ctx.fill();
       } else if (particle.shape === "spark") {
         ctx.shadowColor = particle.color;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = renderProfile.performanceMode ? 0 : 8;
         ctx.lineWidth = Math.max(1.2, particle.size * .42);
         ctx.lineCap = "round";
         ctx.beginPath();
@@ -3518,10 +3551,19 @@
         && Math.abs(window.innerWidth - window.screen.width) < 10
         && window.innerHeight >= window.screen.height * .86),
     );
-    renderProfile = computeCanvasMetrics(rect.width, rect.height, window.devicePixelRatio || 1, fullscreen);
+    if (!fullscreen) adaptiveScale = 1;
+    renderProfile = computeCanvasMetrics(
+      rect.width,
+      rect.height,
+      window.devicePixelRatio || 1,
+      fullscreen,
+      adaptiveScale,
+    );
     game.performanceMode = renderProfile.performanceMode;
     if (canvas.width !== renderProfile.width) canvas.width = renderProfile.width;
     if (canvas.height !== renderProfile.height) canvas.height = renderProfile.height;
+    ctx.imageSmoothingEnabled = true;
+    if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = renderProfile.performanceMode ? "medium" : "high";
     document.body.classList.toggle("is-performance-mode", renderProfile.performanceMode);
   }
 
@@ -3531,13 +3573,52 @@
   }
 
   function getRenderProfile() {
-    return { ...renderProfile };
+    return {
+      ...renderProfile,
+      averageFrameTime,
+      estimatedFps: Math.round(1 / Math.max(1 / 240, averageFrameTime)),
+    };
+  }
+
+  function sampleRenderPerformance(frameTime) {
+    if (!Number.isFinite(frameTime) || frameTime <= 0 || frameTime > .2) return;
+    averageFrameTime += (frameTime - averageFrameTime) * .08;
+
+    if (!renderProfile.fullscreen || game.mode !== "playing") {
+      slowFrameTime = 0;
+      fastFrameTime = 0;
+      return;
+    }
+
+    if (averageFrameTime > .022) {
+      slowFrameTime += frameTime;
+      fastFrameTime = 0;
+    } else if (averageFrameTime < .0155) {
+      fastFrameTime += frameTime;
+      slowFrameTime = Math.max(0, slowFrameTime - frameTime * .5);
+    } else {
+      slowFrameTime = Math.max(0, slowFrameTime - frameTime * .35);
+      fastFrameTime = 0;
+    }
+
+    if (slowFrameTime >= 1.2 && adaptiveScale > .62) {
+      adaptiveScale = Math.max(.62, adaptiveScale - .12);
+      slowFrameTime = 0;
+      fastFrameTime = 0;
+      resizeCanvas();
+    } else if (fastFrameTime >= 8 && adaptiveScale < 1) {
+      adaptiveScale = Math.min(1, adaptiveScale + .08);
+      slowFrameTime = 0;
+      fastFrameTime = 0;
+      resizeCanvas();
+    }
   }
 
 
     return {
       draw,
       resizeCanvas,
+      sampleRenderPerformance,
       getViewWidth,
       getRenderProfile,
       currentOutfitLoadout,

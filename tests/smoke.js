@@ -135,8 +135,11 @@
     await test("Vollbild-Canvas hält sein Pixelbudget ein", () => {
       const metrics = api.computeCanvasMetrics(3840, 2160, 2, true);
       assert(metrics.performanceMode, "Leistungsmodus wird im Vollbild nicht aktiv");
-      assert(metrics.width * metrics.height <= 2310000, "Vollbild-Canvas ist weiterhin zu groß");
+      assert(metrics.width * metrics.height <= 930000, "Vollbild-Canvas ist weiterhin zu groß");
       assert(metrics.width / metrics.height > 1.7, "Seitenverhältnis wurde beschädigt");
+      const reduced = api.computeCanvasMetrics(3840, 2160, 2, true, .76);
+      assert(reduced.width * reduced.height < metrics.width * metrics.height, "Adaptive Qualität senkt die Renderlast nicht");
+      assert(reduced.adaptiveScale === .76, "Adaptive Qualitätsstufe geht verloren");
     });
 
     await test("Zeitformatierung unterstützt Zehntelsekunden", () => {
