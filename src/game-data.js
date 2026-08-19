@@ -1,22 +1,37 @@
 (() => {
   "use strict";
 
-  const GAME_VERSION = "0.9.2";
+  const GAME_VERSION = "0.12.1";
 
   const LEVELS = [
-    { name: "Waldweg bei Seiffen", short: "Seiffen", subtitle: "Zwischen Fichten und Werkstätten", accent: "#3f8a65", sky: ["#8ed3cf", "#d9efe1"], ground: "#537b4a", mood: "forest", backdrop: "level-01" },
-    { name: "Dorf der Lichter", short: "Lichterdorf", subtitle: "Fachwerk, Fenster und Figuren", accent: "#d9993b", sky: ["#88c7c7", "#f8dfaa"], ground: "#687744", mood: "village", backdrop: "level-02" },
-    { name: "Silberner Stollen", short: "Silberstollen", subtitle: "Kristalle unter alten Balken", accent: "#5b83a2", sky: ["#66859a", "#b9d0ca"], ground: "#4f665c", mood: "mine", backdrop: "level-03" },
-    { name: "An der Zschopau", short: "Zschopautal", subtitle: "Über Wasser und Mühlräder", accent: "#2c8c9c", sky: ["#76c8d0", "#d8efe6"], ground: "#4d7b55", mood: "river", backdrop: "level-04" },
-    { name: "Bimmelbahn-Bogen", short: "Bimmelbahn", subtitle: "Mit Volldampf über die Höhen", accent: "#ae4c4d", sky: ["#98ced2", "#f5e2b4"], ground: "#5f784c", mood: "rail", backdrop: "level-05" },
-    { name: "Annaberger Dächer", short: "Annaberg", subtitle: "Hoch über Gassen und Giebeln", accent: "#b6604e", sky: ["#7fb9c8", "#f6d2a5"], ground: "#596d50", mood: "rooftops", backdrop: "level-06" },
-    { name: "Schwibbogen-Nacht", short: "Lichterbogen", subtitle: "Ein Weg im warmen Kerzenschein", accent: "#d6a53d", sky: ["#213958", "#855f75"], ground: "#384c4c", mood: "night", backdrop: "level-07" },
-    { name: "Die Greifensteine", short: "Greifensteine", subtitle: "Kühne Sprünge durch Granit", accent: "#8c6d55", sky: ["#81b7bd", "#e5ddd0"], ground: "#646c50", mood: "rocks", backdrop: "level-08" },
-    { name: "Über Wolkenstein", short: "Wolkenstein", subtitle: "Burgenblick und Wolkensprünge", accent: "#7c659c", sky: ["#88bddd", "#f0e8d2"], ground: "#59725a", mood: "castle", backdrop: "level-09" },
-    { name: "Gipfel am Fichtelberg", short: "Fichtelberg", subtitle: "Das große Finale über den Wolken", accent: "#c15455", sky: ["#69abc9", "#f8e8c5"], ground: "#4d725c", mood: "summit", backdrop: "level-10" },
-    { name: "Der geflutete Stollen", short: "Tauchstollen", subtitle: "Bonus: durch versunkene Schächte", accent: "#47c8d2", sky: ["#0d4658", "#2f8991"], ground: "#365c5e", mood: "underwater", backdrop: "level-11", underwater: true, bonus: true },
-    { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "level-12", bonus: true },
+    { name: "Waldweg bei Seiffen", short: "Seiffen", subtitle: "Zwischen Fichten und Werkstätten", accent: "#3f8a65", sky: ["#8ed3cf", "#d9efe1"], ground: "#537b4a", mood: "forest", backdrop: "level-01", masteryTime: 84 },
+    { name: "Dorf der Lichter", short: "Lichterdorf", subtitle: "Fachwerk, Fenster und Figuren", accent: "#d9993b", sky: ["#88c7c7", "#f8dfaa"], ground: "#687744", mood: "village", backdrop: "level-02", masteryTime: 100 },
+    { name: "Silberner Stollen", short: "Silberstollen", subtitle: "Kristalle unter alten Balken", accent: "#5b83a2", sky: ["#66859a", "#b9d0ca"], ground: "#4f665c", mood: "mine", backdrop: "level-03", masteryTime: 100 },
+    { name: "An der Zschopau", short: "Zschopautal", subtitle: "Über Wasser und Mühlräder", accent: "#2c8c9c", sky: ["#76c8d0", "#d8efe6"], ground: "#4d7b55", mood: "river", backdrop: "level-04", masteryTime: 104 },
+    { name: "Bimmelbahn-Bogen", short: "Bimmelbahn", subtitle: "Mit Volldampf über die Höhen", accent: "#ae4c4d", sky: ["#98ced2", "#f5e2b4"], ground: "#5f784c", mood: "rail", backdrop: "level-05", masteryTime: 108 },
+    { name: "Annaberger Dächer", short: "Annaberg", subtitle: "Hoch über Gassen und Giebeln", accent: "#b6604e", sky: ["#7fb9c8", "#f6d2a5"], ground: "#596d50", mood: "rooftops", backdrop: "level-06", masteryTime: 116 },
+    { name: "Schwibbogen-Nacht", short: "Lichterbogen", subtitle: "Ein Weg im warmen Kerzenschein", accent: "#d6a53d", sky: ["#213958", "#855f75"], ground: "#384c4c", mood: "night", backdrop: "level-07", masteryTime: 112 },
+    { name: "Die Greifensteine", short: "Greifensteine", subtitle: "Kühne Sprünge durch Granit", accent: "#8c6d55", sky: ["#81b7bd", "#e5ddd0"], ground: "#646c50", mood: "rocks", backdrop: "level-08", masteryTime: 116 },
+    { name: "Über Wolkenstein", short: "Wolkenstein", subtitle: "Burgenblick und Wolkensprünge", accent: "#7c659c", sky: ["#88bddd", "#f0e8d2"], ground: "#59725a", mood: "castle", backdrop: "level-09", masteryTime: 120 },
+    { name: "Gipfel am Fichtelberg", short: "Fichtelberg", subtitle: "Das große Finale über den Wolken", accent: "#c15455", sky: ["#69abc9", "#f8e8c5"], ground: "#4d725c", mood: "summit", backdrop: "level-10", masteryTime: 128 },
+    { name: "Der geflutete Stollen", short: "Tauchstollen", subtitle: "Bonus: durch versunkene Schächte", accent: "#47c8d2", sky: ["#0d4658", "#2f8991"], ground: "#365c5e", mood: "underwater", backdrop: "level-11", masteryTime: 100, underwater: true, bonus: true },
+    { name: "Die Sonnenbahn", short: "Sonnenbahn", subtitle: "Bonus: Lade die leise Bergbahn", accent: "#e7a842", sky: ["#81c9e1", "#fff0b0"], ground: "#587747", mood: "solar", backdrop: "level-12", masteryTime: 104, bonus: true },
   ];
+
+  const ENEMY_PROFILES = Object.freeze([
+    Object.freeze({ kind: "mossMunchkin", name: "Moos-Mümmler", body: "#78a95d", accent: "#d9ed83", highlight: "#f2f6c8", outline: "#365b3a", motion: "hop", radius: 25 }),
+    Object.freeze({ kind: "lanternFae", name: "Laternen-Lüftling", body: "#f2a64f", accent: "#ffe17a", highlight: "#fff4c5", outline: "#874b3e", motion: "loop", radius: 24, airborne: true }),
+    Object.freeze({ kind: "crystalNibbler", name: "Kristall-Knabberling", body: "#9175c7", accent: "#65d9dc", highlight: "#e8dcff", outline: "#4b426f", motion: "hop", radius: 26 }),
+    Object.freeze({ kind: "rippleBlob", name: "Plätscher-Puff", body: "#4eb7c8", accent: "#89ecdf", highlight: "#e4fff6", outline: "#27637a", motion: "loop", radius: 25 }),
+    Object.freeze({ kind: "steamPip", name: "Dampf-Droll", body: "#d9d0bf", accent: "#d85d58", highlight: "#fff8e7", outline: "#5d6468", motion: "drift", radius: 25 }),
+    Object.freeze({ kind: "roofGriffin", name: "Ziegel-Zausel", body: "#b96a50", accent: "#edb66f", highlight: "#ffe2ae", outline: "#6b3d45", motion: "loop", radius: 26, airborne: true }),
+    Object.freeze({ kind: "moonMoth", name: "Mond-Motte", body: "#7067ad", accent: "#ffd96d", highlight: "#e6e2ff", outline: "#37345f", motion: "float", radius: 24, airborne: true }),
+    Object.freeze({ kind: "pebbleHopper", name: "Kiesel-Knirps", body: "#9f8d76", accent: "#d7c48e", highlight: "#f4e8c5", outline: "#514b45", motion: "hop", radius: 27 }),
+    Object.freeze({ kind: "cloudWisp", name: "Wolken-Wuschel", body: "#d9d8ec", accent: "#ae82d3", highlight: "#ffffff", outline: "#5e5579", motion: "float", radius: 26, airborne: true }),
+    Object.freeze({ kind: "snowBumble", name: "Gipfel-Flöckchen", body: "#b9dce5", accent: "#e46870", highlight: "#f6ffff", outline: "#496b78", motion: "hop", radius: 27 }),
+    Object.freeze({ kind: "bubbleNymph", name: "Blubber-Nymphe", body: "#4fcac7", accent: "#7cf2d4", highlight: "#e9fffa", outline: "#246678", motion: "swim", radius: 25, airborne: true, aquatic: true }),
+    Object.freeze({ kind: "solarNewt", name: "Sonnen-Salamini", body: "#ef9d43", accent: "#ffe05e", highlight: "#fff3b0", outline: "#864a36", motion: "loop", radius: 25 }),
+  ]);
 
   const ITEM_CATEGORIES = {
     item: "Items",
@@ -380,6 +395,7 @@
     castle: { name: "Wolkensteiner Schlüssel", type: "key", color: "#d4a445" },
     summit: { name: "Fichtelberg-Wimpel", type: "flag", color: "#c55659" },
     underwater: { name: "Versunkene Grubenmarke", type: "coin", color: "#63dbe2" },
+    solar: { name: "Sonnenbahn-Fahrkarte", type: "ticket", color: "#f2c857" },
   };
 
   const SECRET_ROOM_LAYOUTS = [
@@ -459,6 +475,7 @@
   Object.assign(window.SchorschGame ||= {}, {
     GAME_VERSION,
     LEVELS,
+    ENEMY_PROFILES,
     ITEM_CATEGORIES,
     HAND_ITEMS,
     LEGACY_OUTFIT_REFUNDS,

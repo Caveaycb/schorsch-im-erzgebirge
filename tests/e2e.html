@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Schorsch · Kampagnen-Durchlauftests</title>
+    <style>
+      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { max-width: 900px; margin: 0 auto; padding: 32px 20px; color: #e9f3e7; background: #102823; }
+      h1 { margin-bottom: 6px; font-family: Georgia, serif; }
+      #summary { color: #a8c8bb; }
+      ol { display: grid; gap: 8px; padding: 0; list-style: none; }
+      li { padding: 11px 13px; border: 1px solid #315f54; border-radius: 10px; background: #17362f; }
+      li.pass::before { content: "✓ "; color: #79e7aa; }
+      li.fail { border-color: #ae5260; background: #49252b; }
+      li.fail::before { content: "✕ "; color: #ff8d9b; }
+      iframe { position: fixed; width: 1280px; height: 720px; left: -10000px; border: 0; }
+    </style>
+    <script src="e2e.js?v=11" defer></script>
+  </head>
+  <body>
+    <p>Automatisierte vollständige Kampagnenprüfung</p>
+    <h1>Schorsch Durchlauftests</h1>
+    <p id="summary">Tests laufen …</p>
+    <ol id="results"></ol>
+    <iframe id="gameFrame" src="../index.html?e2e=1&amp;revision=10" title="Isolierte Spielinstanz"></iframe>
+  </body>
+</html>

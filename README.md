@@ -29,6 +29,13 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - weitere regionale Aufträge: Mühlräder und Stromschnellen, Bahnsignale und Fahrplan, Wetterfahnen und Dachsturm, Bogenkerzen und Lichtkreis, Steinzeichen und Felstore, Burgschlüssel und Uhrwerk sowie Gipfelwimpel und Wolkenfront
 - eigene Bonusaufträge im Tauchstollen und auf der Sonnenbahn mit Druckventilen, Unterwasserringen, Solarmodulen und Ladestation
 - dauerhaft gespeicherte Bestzeiten mit Zehntelsekunden, Rekordhinweis in der Auswertung und Bestzeitanzeige auf der Levelkarte
+- drei dauerhaft sammelbare Meisterschaftsmedaillen pro Level: Meisterzeit, alle Andenken und ein Abschluss ohne verlorenes Leben
+- Gesamtfortschritt mit 36 Medaillen, drei Kapitelabzeichen und gestaffelten Bergfunken-Belohnungen
+- vollständiges Stickeralbum mit 100 einzeln gestalteten Motiven aus PV, Wärme, Strom, Gas, Wasser, Glasfaser und E-Mobilität
+- Sticker ausschließlich gegen Bergfunken: als direkter Wunschkauf oder über duplikatfreie Dreierpacks für 20 Bergfunken; Level, Medaillen und Kapitel vergeben keine Sticker
+- direkter Stickerkauf mit gestaffelten Einzelpreisen von 7 bis maximal 25 Bergfunken; Holo- und legendäre Premiumkarten besitzen eine besonders wertige Goldkarten-Darstellung
+- sieben Albumfilter, große Kaufvorschau, sichtbare Wunschmotive und Glitzer-, Holo- sowie legendäre Sammlerstufen
+- neue Levelauswertung mit einzelnen Medaillenkarten, Richtzeiten, Fortschrittsstatus und Kapitelbelohnungen
 - zehn freischaltbare Levelregionen plus die Bonus-Hauptlevel „Der geflutete Stollen“ und „Die Sonnenbahn“
 - zehn unterschiedliche Geheimlevel: Federwerkstatt, Lichterkeller, Kristallaufzüge, Wassergrotte, Zugdepot, Dacharchiv, Laternenlabyrinth, Granitschacht, Uhrwerk und Gipfelhöhle
 - eigene Geheimlevel-Mechaniken wie Förderbänder, Lichtbrücken, Strömung, Aufwind, rutschiger Boden und fahrende Zugwagen
@@ -39,13 +46,15 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - animierte Bewegungszustände für Leerlauf, Anlauf, Absprung, Scheitelpunkt, Fall und Landung
 - separate Rennanimationen für beide Arme, weiße Handschuhe, Beine und den richtungsabhängig nachlaufenden Rucksack
 - eigener tauchender Schorsch im Bonuslevel mit freier Unterwasserbewegung, Schwimmrhythmus, Auftrieb, Strömung, Blasen und Wasserlinien
-- bewegliche Plattformen, Sprungfedern, harmlose Rußwichtel und langsam flatternde Lichterwichtel
-- fünf Startleben, sammelbare Wanderherzen in Haupt- und Geheimleveln sowie maximal 999 Leben
-- Abstürze und Treffer durch Rußwichtel kosten ein Leben; nach dem letzten Leben startet das aktuelle Hauptlevel vollständig neu
+- bewegliche Plattformen, Sprungfedern und freundlich lesbare Gegnerpatrouillen
+- zwölf einzigartige, niedliche Fantasiewesen – unter anderem Moos-Mümmler, Kristall-Knabberling, Mond-Motte, Wolken-Wuschel, Blubber-Nymphe und Sonnen-Salamini – mit eigenen Farben, Silhouetten und Bewegungen
+- vollständig neu verteilte Gegnerpatrouillen mit Freiraum zu Bergfunken, Herzen, Andenken und Auftragsobjekten
+- fünf Startleben, zwei Wanderherzen pro Hauptlevel und ein weiteres im jeweiligen Geheimabschnitt; jedes Herz kann bei einem neuen Durchlauf erneut eingesammelt werden
+- der Herzvorrat gilt mit maximal 99 Leben für den gesamten Spielstand; bei 0 gibt es kein Sterben, sondern einen sanften Levelneustart mit fünf Herzen und vollständig erhaltenem Fortschritt
 - Bergfunken, Checkpoints, Zielportale und Levelzeit
-- fünf regionale Reiseandenken pro Hauptlevel, darunter Holzsterne, Grubenlampen, Fahrkarten, Schlüssel und Gipfelwimpel
-- dauerhaftes Andenken-Inventar mit eigener Anzeige im Spielkopf und Levelauswertung
-- dauerhaftes Bergfunken-Konto (jeder Kristall wird pro Level nur einmal gutgeschrieben)
+- genau ein einzigartiges regionales Reiseandenken pro Level, darunter Holzstern, Grubenlampe, Fahrkarte, Schlüssel und Gipfelwimpel
+- dauerhaftes, duplikatfreies Andenken-Inventar mit eigener Anzeige im Spielkopf und Levelauswertung
+- dauerhaftes Bergfunken-Konto; jeder eingesammelte Kristall zählt auch bei einem erneuten Leveldurchlauf, während der Entdeckungsstatus separat gespeichert bleibt
 - Outfit-Laden mit 14 Teilen aus Jacken/Umhängen, Mützen, Schuhen und Wanderzubehör
 - pro Ausrüstungskategorie kann genau ein Teil gleichzeitig getragen werden
 - bis zu 400 passgenau zusammengesetzte Schorsch-Varianten statt frei schwebender Symbol-Overlays
@@ -53,8 +62,8 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - körpernah neu gezeichnete Jacken mit eigenen Ärmeln, Kragen, Bündchen, Säumen und typabhängigen Details
 - individuell angepasste Mützen, Schuhe, Wanderstock, Laterne, Schal und Umhang mit festen Kopf-, Fuß-, Hand- und Rückenankern
 - dauerhaftes Reise-Menü für freigeschaltete Level, Talentpfad, Rucksackinventar und Outfit-Laden – auch während eines laufenden Levels
-- Rucksackinventar für regionale Fundstücke, Geheimweg-Schätze und besondere Höhenfunde
-- hohe Plattformrouten belohnen mit seltenen Aussichtssternen, Bergkamm-Abzeichen und zusätzlichen Wanderherzen
+- Rucksackinventar mit zwölf einmaligen Regionsandenken und automatischer Bereinigung älterer Duplikate
+- hohe Plattformrouten belohnen mit seltenen Aussichtssternen, Bergkamm-Abzeichen und erneut sammelbaren Wanderherzen
 - sieben lernbare Talente, davon maximal vier gleichzeitig aktiv; neue Hilfen sind Bergsprinter und das einmalige Wanderseil
 - regionale Spielwelten: Fachwerk, Stollen, Zschopau, Bimmelbahn, Schieferdächer, Schwibbogen, Greifensteine und Gipfel
 - elf eigenständige, detailreiche 3D-Comic-Kulissen – einschließlich eines gefluteten Erzgebirgsstollens mit Lorenbahn, Holzbalken und Kristalllicht
@@ -68,7 +77,7 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - zehn zusätzliche geheimnisvolle Musikvarianten für die unterschiedlichen Geheimlevel
 - überarbeitete Schritt-, Sprung- und Landetöne
 - Schorsch im verbindlichen Originaldesign mit frei wählbarem Namen
-- lokaler Spielfortschritt per `localStorage`
+- versionierter lokaler Spielfortschritt mit automatischer Migration sowie JSON-Export und -Import unter Optionen
 - Vorschau auf einen späteren Talentpfad
 - responsive Tastatur- und Touch-Steuerung
 
@@ -77,6 +86,7 @@ Danach `http://127.0.0.1:8765/` im Browser öffnen.
 - `F3`: Debug-Overlay mit FPS, Position, Geschwindigkeit, Bewegungszustand und Hitboxen ein-/ausschalten
 - `F4`: bei aktivem Debug-Overlay zum nächsten Rastplatz springen
 - Smoke-Tests im lokalen Server unter `http://127.0.0.1:8765/tests/smoke.html` öffnen
-- die Tests prüfen Level-/Auftragsdaten, Kollisionen, Bewegungstuning, Strömungen, Landungsfeedback, Zeitformatierung und den vollständigen Browserstart
+- vollständige Kampagnen-Durchlauftests unter `http://127.0.0.1:8765/tests/e2e.html` öffnen
+- die Tests prüfen Level-/Auftragsdaten, das 100er-Stickeralbum, duplikatfreie Packs, Medaillen, Speicher-Migration, Kollisionen, Bewegungstuning, Strömungen, Landungsfeedback, alle zwölf Level, alle drei Kapitelbelohnungen, alle Endgegner und den vollständigen Browserstart
 
-Die Dateien kommen ohne externe Bibliotheken oder Build-Schritt aus. Der Einstiegspunkt ist `index.html`; `game.js` koordiniert den Ablauf, während Daten, Physik, Rendering, Audio, UI und Debug-Werkzeuge getrennt unter `src/` liegen. Weitere technische Details stehen in `ARCHITECTURE.md`.
+Die Dateien kommen ohne externe Bibliotheken oder Build-Schritt aus. Der Einstiegspunkt ist `index.html`; `game.js` koordiniert den Ablauf, während Daten, Fortschritt, Speicher, Physik, Welt- und Figurenrendering, Audio, UI und Debug-Werkzeuge getrennt unter `src/` liegen. Weitere technische Details stehen in `ARCHITECTURE.md`.

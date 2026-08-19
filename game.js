@@ -4,11 +4,21 @@
   const {
     GAME_VERSION,
     LEVELS,
+    ENEMY_PROFILES,
     ITEM_CATEGORIES,
     HAND_ITEMS,
     LEGACY_OUTFIT_REFUNDS,
     TALENTS,
     CAMPAIGN_CHAPTERS,
+    MEDAL_DEFINITIONS,
+    CHAPTER_REWARDS,
+    STICKERS,
+    STICKER_CATEGORIES,
+    STICKER_PACK_COST,
+    STICKER_PACK_SIZE,
+    nextStickerRewards,
+    normalizeStickerIds,
+    stickerCategoryCounts,
     LEVEL_MUSIC,
     SECRET_MUSIC,
     REGIONAL_ITEMS,
@@ -27,6 +37,16 @@
     damageBoss,
     isBossStomp,
     canCompleteEscapeAtGoal,
+    calculateLevelMedals,
+    mergeLevelMedals,
+    normalizeMedalRecord,
+    medalCount,
+    chapterRewardStatuses,
+    newlyUnlockedChapterRewards,
+    expectedLevelItemCount,
+    countFoundLevelItems,
+    normalizeFoundItems,
+    createSaveSystem,
   } = window.SchorschGame;
 
   const canvas = document.querySelector("#gameCanvas");
@@ -38,8 +58,9 @@
   const H = 720;
   const TAU = Math.PI * 2;
   const START_LIVES = 5;
-  const MAX_LIVES = 999;
+  const MAX_LIVES = 99;
   const MAX_ACTIVE_TALENTS = 4;
+  const TEST_MODE = new URLSearchParams(location.search).has("e2e");
   const BOSS_PROFILES = Object.freeze({
     stormCrow: {
       width: 104, height: 68, yOffset: 112, hoverX: 42, hoverY: 19,
@@ -102,7 +123,12 @@
   let resizeFrame = 0;
   let stageResizeObserver = null;
 
-  const storage = loadProgress();
+  const saveSystem = createSaveSystem({
+    gameVersion: GAME_VERSION,
+    levelCount: LEVELS.length,
+    memoryOnly: TEST_MODE,
+  });
+  const storage = saveSystem.load();
   const storedOwnedTalents = storage.talentLoadoutSaved && Array.isArray(storage.ownedTalents)
     ? storage.ownedTalents
     : storage.talents;
@@ -118,6 +144,7 @@
     sound: storage.sound,
     wallet: Math.max(0, Number(storage.wallet) || 0),
     claimedSparks: new Set(Array.isArray(storage.claimedSparks) ? storage.claimedSparks : []),
+    claimedHearts: new Set(Array.isArray(storage.claimedHearts) ? storage.claimedHearts : []),
     ownedItems: new Set(storage.itemLoadoutSaved && Array.isArray(storage.ownedItems) ? storage.ownedItems : (Array.isArray(storage.ownedOutfits) ? storage.ownedOutfits : [])),
     equippedItems: new Set(storage.itemLoadoutSaved && Array.isArray(storage.equippedItems) ? storage.equippedItems : (Array.isArray(storage.equippedOutfits) ? storage.equippedOutfits : [])),
     itemOnlyMigrationDone: Boolean(storage.itemOnlyMigrationDone),
@@ -126,6 +153,10 @@
     foundItems: new Set(Array.isArray(storage.foundItems) ? storage.foundItems : []),
     bestTimes: storage.bestTimes && typeof storage.bestTimes === "object" ? { ...storage.bestTimes } : {},
     tutorialsSeen: new Set(Array.isArray(storage.tutorialsSeen) ? storage.tutorialsSeen : []),
+    levelMedals: storage.levelMedals && typeof storage.levelMedals === "object" ? { ...storage.levelMedals } : {},
+    claimedChapterRewards: new Set(Array.isArray(storage.claimedChapterRewards) ? storage.claimedChapterRewards : []),
+    ownedStickers: new Set(normalizeStickerIds(storage.ownedStickers)),
+    recentStickerIds: new Set(),
     level: null,
     player: null,
     mainLevel: null,
@@ -137,9 +168,10 @@
     cameraY: 0,
     cameraLookX: 0,
     cameraKick: 0,
-    hearts: START_LIVES,
+    hearts: Math.max(1, Math.min(MAX_LIVES, Number(storage.hearts) || START_LIVES)),
     lifeTalentUsed: false,
     safetyNetUsed: false,
+    runMistakes: 0,
     sparks: 0,
     runStartedAt: 0,
     pausedAt: 0,
@@ -178,6 +210,17 @@
     HAND_ITEMS,
     TALENTS,
     REGIONAL_ITEMS,
+    MEDAL_DEFINITIONS,
+    CHAPTER_REWARDS,
+    STICKERS,
+    STICKER_CATEGORIES,
+    STICKER_PACK_COST,
+    STICKER_PACK_SIZE,
+    nextStickerRewards,
+    stickerCategoryCounts,
+    normalizeMedalRecord,
+    medalCount,
+    chapterRewardStatuses,
     MAX_LIVES,
     MAX_ACTIVE_TALENTS,
     formatTime,
@@ -188,40 +231,10 @@
     currentOutfitLoadout,
     singleOutfitLoadout,
   });
-  const { showToast, updateHud, updateMissionHud, renderOutfitShop, renderSkillTree, renderInventory, renderLevelGrid } = uiActions;
+  const { showToast, updateHud, updateMissionHud, renderOutfitShop, renderSkillTree, renderInventory, renderStickerAlbum, buySticker, openStickerPack, renderFinishStickerShop, renderLevelGrid } = uiActions;
 
-  function loadProgress() {
-    const defaults = {
-      currentLevel: 0,
-      unlocked: 1,
-      completed: [],
-      playerName: "Schorsch",
-      sound: true,
-      wallet: 0,
-      claimedSparks: [],
-      ownedOutfits: [],
-      equippedOutfits: [],
-      ownedItems: [],
-      equippedItems: [],
-      itemLoadoutSaved: false,
-      itemOnlyMigrationDone: false,
-      talents: [],
-      ownedTalents: [],
-      equippedTalents: [],
-      talentLoadoutSaved: false,
-      foundItems: [],
-      bestTimes: {},
-      tutorialsSeen: [],
-    };
-    try {
-      return { ...defaults, ...JSON.parse(localStorage.getItem("schorsch-progress") || "{}") };
-    } catch {
-      return defaults;
-    }
-  }
-
-  function saveProgress() {
-    localStorage.setItem("schorsch-progress", JSON.stringify({
+  function progressSnapshot() {
+    return {
       currentLevel: game.levelIndex,
       unlocked: game.unlocked,
       completed: [...game.completed],
@@ -229,6 +242,8 @@
       sound: game.sound,
       wallet: game.wallet,
       claimedSparks: [...game.claimedSparks],
+      hearts: game.hearts,
+      claimedHearts: [...game.claimedHearts],
       ownedItems: [...game.ownedItems],
       equippedItems: [...game.equippedItems],
       itemLoadoutSaved: true,
@@ -240,7 +255,14 @@
       foundItems: [...game.foundItems],
       bestTimes: game.bestTimes,
       tutorialsSeen: [...game.tutorialsSeen],
-    }));
+      levelMedals: game.levelMedals,
+      claimedChapterRewards: [...game.claimedChapterRewards],
+      ownedStickers: [...game.ownedStickers],
+    };
+  }
+
+  function saveProgress() {
+    return saveSystem.save(progressSnapshot());
   }
 
   function seededRandom(seed) {
@@ -510,17 +532,6 @@
 
     addPuzzleChallenge(level);
     addNextStageFeatures(level);
-    const regional = REGIONAL_ITEMS.rail;
-    level.items.push({
-      id: "rail-master-ticket", x: 3875, y: 386, name: "Goldene Weichenkarte", type: "ticket", color: "#efc45c", rare: true,
-      collected: game.foundItems.has(`${level.index}:rail-master-ticket`),
-    });
-    level.lifePickups.push({ id: "rail-life-lookout", x: 2810, y: 230, collected: false, phase: 3.8 });
-    level.lifePickups.push({ id: "rail-life-depot", x: 7700, y: 286, collected: false, phase: 5.2 });
-    level.items.push({
-      id: "rail-depot-ticket", x: 7485, y: 398, name: regional.name, type: regional.type, color: regional.color,
-      collected: game.foundItems.has(`${level.index}:rail-depot-ticket`),
-    });
     removeGoalApproachCollectibles(level);
     return level;
   }
@@ -591,14 +602,10 @@
       windZones: [],
       items: [
         { id: "tauch-a", x: 1490, y: 188, name: itemMeta.name, type: itemMeta.type, color: itemMeta.color, collected: game.foundItems.has(`${index}:tauch-a`) },
-        { id: "tauch-b", x: 3490, y: 500, name: "Alte Lorenplakette", type: "badge", color: "#d0a55d", collected: game.foundItems.has(`${index}:tauch-b`) },
-        { id: "tauch-c", x: 5350, y: 180, name: "Türkiser Stollenkristall", type: "star", color: "#58e6df", collected: game.foundItems.has(`${index}:tauch-c`) },
       ],
       lifePickups: [
-        { id: "tauch-life-0", x: 1050, y: 180, collected: false, phase: .7 },
-        { id: "tauch-life-1", x: 2580, y: 525, collected: false, phase: 2.1 },
-        { id: "tauch-life-2", x: 3900, y: 205, collected: false, phase: 3.4 },
-        { id: "tauch-life-3", x: 5140, y: 500, collected: false, phase: 4.8 },
+        { id: "tauch-life-0", x: 1850, y: 235, collected: false, phase: 1.2 },
+        { id: "tauch-life-1", x: 3900, y: 205, collected: false, phase: 3.4 },
       ],
       secret: { found: true },
       secretEntrance: null,
@@ -609,6 +616,7 @@
   function createSolarRailBonusLevel() {
     const index = LEVELS.findIndex((entry) => entry.mood === "solar");
     const meta = LEVELS[index];
+    const itemMeta = REGIONAL_ITEMS.solar;
     const worldWidth = 6600;
     const platforms = [
       bonusGround("solar-ground-0", 0, 620, 790, "earth"),
@@ -666,14 +674,11 @@
       currents: [],
       windZones: [],
       items: [
-        { id: "solar-a", x: 1840, y: 266, name: "Sonnenbahn-Fahrkarte", type: "ticket", color: "#f2c857", collected: game.foundItems.has(`${index}:solar-a`) },
-        { id: "solar-b", x: 3870, y: 518, name: "Goldener Ladefunke", type: "star", color: "#ffcb48", collected: game.foundItems.has(`${index}:solar-b`) },
-        { id: "solar-c", x: 5890, y: 255, name: "Kleiner Solarkompass", type: "badge", color: "#e6a33c", collected: game.foundItems.has(`${index}:solar-c`) },
+        { id: "solar-a", x: 1840, y: 266, name: itemMeta.name, type: itemMeta.type, color: itemMeta.color, collected: game.foundItems.has(`${index}:solar-a`) },
       ],
       lifePickups: [
-        { id: "solar-life-0", x: 1450, y: 380, collected: false, phase: .9 },
-        { id: "solar-life-1", x: 3480, y: 520, collected: false, phase: 2.7 },
-        { id: "solar-life-2", x: 5480, y: 380, collected: false, phase: 4.5 },
+        { id: "solar-life-0", x: 1300, y: 382, collected: false, phase: 1.1 },
+        { id: "solar-life-1", x: 5280, y: 377, collected: false, phase: 3.8 },
       ],
       secret: { found: true },
       secretEntrance: null,
@@ -836,9 +841,255 @@
   }
 
   function removeGoalApproachCollectibles(level) {
-    if (!level.goal || !level.collectibles) return;
-    const clearZoneStart = level.goal.x - 300;
-    level.collectibles = level.collectibles.filter((collectible) => collectible.x < clearZoneStart);
+    if (level.goal && level.collectibles) {
+      const clearZoneStart = level.goal.x - 300;
+      level.collectibles = level.collectibles.filter((collectible) => collectible.x < clearZoneStart);
+    }
+    limitLevelBergfunken(level);
+    placeLevelEnemies(level);
+    separateCollectionObjects(level);
+  }
+
+  function evenlySpacedEntries(entries, count) {
+    if (entries.length <= count) return entries;
+    if (count <= 1) return entries.slice(0, Math.max(0, count));
+    const selected = [];
+    const used = new Set();
+    for (let slot = 0; slot < count; slot += 1) {
+      const index = Math.round(slot * (entries.length - 1) / (count - 1));
+      if (!used.has(index)) {
+        used.add(index);
+        selected.push(entries[index]);
+      }
+    }
+    return selected;
+  }
+
+  function limitLevelBergfunken(level) {
+    const collectibles = [...(level.collectibles || [])].sort((first, second) => first.x - second.x);
+    const limit = level.isBonusRoom ? 10 : level.underwater ? 18 : level.mood === "solar" ? 20 : 26;
+    if (collectibles.length <= limit) return;
+    const puzzleRewards = collectibles.filter((collectible) => String(collectible.id).startsWith("puzzle-reward-"));
+    const regular = collectibles.filter((collectible) => !String(collectible.id).startsWith("puzzle-reward-"));
+    level.collectibles = [...evenlySpacedEntries(regular, Math.max(0, limit - puzzleRewards.length)), ...puzzleRewards]
+      .sort((first, second) => first.x - second.x);
+  }
+
+  function levelEnemyBlockers(level) {
+    return [
+      ...(level.checkpoints || [level.checkpoint]).filter(Boolean).map((checkpoint, index) => ({
+        object: { id: `checkpoint-${index}`, x: checkpoint.x + 28, y: checkpoint.y + 42 }, kind: "checkpoint", radiusX: 68, radiusY: 72, fixed: true,
+      })),
+      ...(level.springs || []).map((spring, index) => ({
+        object: { id: `spring-${index}`, x: spring.x + spring.w * .5, y: spring.y }, kind: "spring", radiusX: 55, radiusY: 34, fixed: true,
+      })),
+      ...(level.secretEntrance ? [{
+        object: { id: "secret-entrance", x: level.secretEntrance.x + level.secretEntrance.w * .5, y: level.secretEntrance.y + level.secretEntrance.h * .5 },
+        kind: "secretEntrance", radiusX: 72, radiusY: 92, fixed: true,
+      }] : []),
+      ...(level.goal ? [{
+        object: { id: "level-goal", x: level.goal.x + level.goal.w * .5, y: level.goal.y + level.goal.h * .5 },
+        kind: "goal", radiusX: 92, radiusY: 82, fixed: true,
+      }] : []),
+      ...(level.puzzle?.nodes || []).map((node, index) => ({ object: { ...node, id: `puzzle-${index}` }, kind: "puzzle", radiusX: 50, radiusY: 50, fixed: true })),
+      ...(level.chapter?.task?.nodes || []).map((node, index) => ({ object: { ...node, id: `task-${index}` }, kind: "task", radiusX: 54, radiusY: 54, fixed: true })),
+      ...(level.decorations || []).map((decoration, index) => ({
+        object: { id: `decoration-${index}`, x: decoration.x, y: decoration.y - 52 }, kind: "decoration",
+        radiusX: 82 * (decoration.scale || 1), radiusY: 76 * (decoration.scale || 1), fixed: true,
+      })),
+    ];
+  }
+
+  function placeLevelEnemies(level) {
+    const boosts = (level.hazards || []).filter((hazard) => hazard.kind === "sunBoost");
+    const profile = ENEMY_PROFILES[level.index % ENEMY_PROFILES.length];
+    const count = level.isBonusRoom ? 2 : 4;
+    const ratios = level.isBonusRoom ? [.34, .7] : [.2, .4, .61, .79];
+    const grounds = (level.platforms || [])
+      .filter((platform) => platform.ground && platform.w >= 230)
+      .sort((first, second) => first.x - second.x);
+    level.enemyProfile = profile;
+    const blockers = levelEnemyBlockers(level);
+    const enemies = [];
+    ratios.slice(0, count).forEach((ratio, enemyIndex) => {
+      const desiredX = level.worldWidth * ratio;
+      const radius = profile.radius || 25;
+      const aquatic = Boolean(profile.aquatic || level.underwater);
+      const candidateGrounds = aquatic ? [null] : grounds;
+      const candidates = [];
+      for (const ground of candidateGrounds) {
+        const range = aquatic ? 70 : Math.min(78, Math.max(30, (ground?.w || 420) * .1));
+        const safeLeft = ground ? ground.x + radius + range + 24 : radius + range + 24;
+        const safeRight = ground ? ground.x + ground.w - radius - range - 24 : level.worldWidth - radius - range - 24;
+        const maxX = Math.max(safeLeft, safeRight);
+        const groundY = ground?.y || H - 90;
+        const baseY = aquatic
+          ? 210 + (enemyIndex % 2) * 225
+          : groundY - radius - (profile.airborne ? 72 + (enemyIndex % 2) * 18 : 9);
+        const candidateXs = aquatic
+          ? [0, 175, -175, 310, -310, 445, -445].map((offset) => desiredX + offset)
+          : [desiredX, ground.x + ground.w * .32, ground.x + ground.w * .5, ground.x + ground.w * .68];
+        for (const candidateX of candidateXs) {
+          const x = Math.max(safeLeft, Math.min(maxX, candidateX));
+          const enemyCollisionCount = enemies.filter((enemy) => (
+            Math.abs(x - enemy.baseX) < radius + range + enemy.r + enemy.range + 42
+            && Math.abs(baseY - enemy.baseY) < radius + enemy.r + 48
+          )).length;
+          const blockerCollisionCount = blockers.filter((blocker) => (
+            Math.abs(x - blocker.object.x) < radius + range + blocker.radiusX + 26
+            && Math.abs(baseY - blocker.object.y) < radius + blocker.radiusY + 42
+          )).length;
+          candidates.push({
+            x,
+            baseY,
+            range,
+            collisionCount: enemyCollisionCount + blockerCollisionCount,
+            distance: Math.abs(x - desiredX),
+          });
+        }
+      }
+      candidates.sort((first, second) => first.collisionCount - second.collisionCount || first.distance - second.distance);
+      const selected = candidates[0] || { x: desiredX, baseY: H - 100, range: 40 };
+      const enemy = {
+        id: `enemy-${level.index}-${level.isBonusRoom ? "secret" : "main"}-${enemyIndex}`,
+        kind: "enemy",
+        enemyKind: profile.kind,
+        enemyName: profile.name,
+        palette: profile,
+        x: selected.x,
+        y: selected.baseY,
+        baseX: selected.x,
+        baseY: selected.baseY,
+        r: radius,
+        range: selected.range,
+        verticalRange: aquatic || profile.airborne ? 20 : 8,
+        speed: .62 + enemyIndex * .075 + (level.index % 3) * .025,
+        phase: level.index * .71 + enemyIndex * 1.43,
+        motionKind: profile.motion,
+        aquatic,
+        collected: false,
+      };
+      enemies.push(enemy);
+    });
+    level.hazards = [...enemies, ...boosts];
+  }
+
+  function heartClaimId(level, life) {
+    return `${level.index}:${level.isBonusRoom ? "secret" : "main"}:${life.id}`;
+  }
+
+  function collectionObjects(level) {
+    return [
+      ...levelEnemyBlockers(level),
+      ...(level.hazards || [])
+        .map((object) => object.kind === "sunBoost"
+          ? { object, kind: "sunBoost", radiusX: object.r + 8, radiusY: object.r + 8, fixed: true }
+          : { object, kind: "enemy", radiusX: object.r + object.range + 18, radiusY: object.r + 34, fixed: true }),
+      ...(level.items || [])
+        .map((object) => ({ object, kind: "item", radiusX: 27, radiusY: 31, fixed: false })),
+      ...(level.lifePickups || [])
+        .map((object) => ({ object, kind: "heart", radiusX: 29, radiusY: 31, fixed: false })),
+      ...(level.collectibles || [])
+        .map((object) => ({ object, kind: "spark", radiusX: 23, radiusY: 28, fixed: false })),
+    ];
+  }
+
+  function collectionObjectsOverlap(first, second, padding = 8) {
+    return Math.abs(first.object.x - second.object.x) < first.radiusX + second.radiusX + padding
+      && Math.abs(first.object.y - second.object.y) < first.radiusY + second.radiusY + padding;
+  }
+
+  function collectionOverlapPairs(level) {
+    const entries = collectionObjects(level);
+    const overlaps = [];
+    for (let first = 0; first < entries.length; first += 1) {
+      for (let second = first + 1; second < entries.length; second += 1) {
+        const bothAreStaticScenery = entries[first].fixed && entries[second].fixed
+          && entries[first].kind !== "enemy" && entries[second].kind !== "enemy";
+        if (bothAreStaticScenery) continue;
+        if (collectionObjectsOverlap(entries[first], entries[second])) {
+          overlaps.push({
+            first: `${entries[first].kind}:${entries[first].object.id || first}`,
+            second: `${entries[second].kind}:${entries[second].object.id || second}`,
+            firstPosition: [Math.round(entries[first].object.x), Math.round(entries[first].object.y)],
+            secondPosition: [Math.round(entries[second].object.x), Math.round(entries[second].object.y)],
+          });
+        }
+      }
+    }
+    return overlaps;
+  }
+
+  function collectionOverlapCount(level) {
+    return collectionOverlapPairs(level).length;
+  }
+
+  function pickupSupport(level, object) {
+    return (level.platforms || [])
+      .filter((platform) => object.x >= platform.x - 24 && object.x <= platform.x + platform.w + 24)
+      .filter((platform) => platform.y >= object.y + 18 && platform.y - object.y <= 155)
+      .sort((first, second) => Math.abs(first.y - object.y) - Math.abs(second.y - object.y))[0] || null;
+  }
+
+  function separateCollectionObjects(level) {
+    const entries = collectionObjects(level);
+    const placed = [
+      ...entries.filter((entry) => entry.fixed),
+    ];
+    const xOffsets = [0, 64, -64, 104, -104, 148, -148, 196, -196];
+    const yOffsets = [0, -62, -104, 62, -148];
+
+    for (const entry of entries.filter((candidate) => !candidate.fixed)) {
+      const originX = entry.object.x;
+      const originY = entry.object.y;
+      const support = pickupSupport(level, entry.object);
+      let selected = null;
+
+      for (const yOffset of yOffsets) {
+        for (const xOffset of xOffsets) {
+          const margin = entry.radiusX + 7;
+          const minX = support && support.w >= margin * 2 ? support.x + margin : margin;
+          const maxX = support && support.w >= margin * 2 ? support.x + support.w - margin : level.worldWidth - margin;
+          const candidate = {
+            ...entry,
+            object: {
+              x: Math.max(minX, Math.min(maxX, originX + xOffset)),
+              y: Math.max(70, Math.min(H - 52, originY + yOffset)),
+            },
+          };
+          if (placed.every((other) => !collectionObjectsOverlap(candidate, other))) {
+            selected = candidate.object;
+            break;
+          }
+        }
+        if (selected) break;
+      }
+
+      if (!selected) {
+        const fallbackOffsets = Array.from({ length: 20 }, (_, index) => (index % 2 ? -1 : 1) * Math.ceil((index + 1) / 2) * 48);
+        for (const xOffset of fallbackOffsets) {
+          const candidate = {
+            ...entry,
+            object: {
+              x: Math.max(entry.radiusX + 7, Math.min(level.worldWidth - entry.radiusX - 7, originX + xOffset)),
+              y: Math.max(70, Math.min(H - 52, originY)),
+            },
+          };
+          if (placed.every((other) => !collectionObjectsOverlap(candidate, other))) {
+            selected = candidate.object;
+            break;
+          }
+        }
+      }
+
+      if (selected) {
+        entry.object.x = selected.x;
+        entry.object.y = selected.y;
+      }
+      placed.push(entry);
+    }
+
+    level.collectionOverlapCount = collectionOverlapCount(level);
   }
 
   function levelPlatformType(levelIndex, segmentIndex, ledgeIndex) {
@@ -1059,9 +1310,6 @@
     level.secret = { ...level.secretEntrance, found: false, used: false };
 
     const firstGround = grounds[Math.min(1, grounds.length - 1)] || grounds[0];
-    const lateLedge = ledges
-      .filter((platform) => platform.x > level.worldWidth * .58)
-      .sort((a, b) => a.x - b.x)[0] || ledges[ledges.length - 1] || grounds[grounds.length - 1];
     const highRouteCandidates = ledges
       .filter((platform) => platform.y < 455)
       .sort((a, b) => a.x - b.x);
@@ -1069,39 +1317,27 @@
       .filter((platform, index) => index % Math.max(1, Math.ceil(highRouteCandidates.length / 3)) === 0)
       .slice(0, 3);
     const itemIdA = `${level.index}:main-a`;
-    const itemIdB = `${level.index}:main-b`;
     level.items = [
       {
         id: "main-a", x: firstGround.x + Math.min(firstGround.w - 70, 250), y: firstGround.y - 39,
         name: itemMeta.name, type: itemMeta.type, color: itemMeta.color, collected: game.foundItems.has(itemIdA),
       },
-      {
-        id: "main-b", x: lateLedge.x + lateLedge.w * .5, y: lateLedge.y - 39,
-        name: itemMeta.name, type: itemMeta.type, color: itemMeta.color, collected: game.foundItems.has(itemIdB),
-      },
-      ...highRouteLedges.map((ledge, index) => ({
-        id: `high-route-${index}`,
-        x: ledge.x + ledge.w * .5,
-        y: ledge.y - 42,
-        name: index === 0 ? `Höhenfund: ${itemMeta.name}` : index === 1 ? "Bergkamm-Abzeichen" : "Aussichtsstern",
-        type: index === 1 ? "badge" : "star",
-        color: index === 1 ? "#d7a84a" : "#f3c95d",
-        rare: true,
-        collected: game.foundItems.has(`${level.index}:high-route-${index}`),
-      })),
     ];
 
-    const lifeAnchors = [
-      grounds[Math.min(2, grounds.length - 1)] || firstGround,
-      highRouteLedges[1] || highRouteLedges[0] || ledges[Math.floor(ledges.length * .42)] || safeAnchor,
-      grounds[Math.max(0, grounds.length - 2)] || lateLedge,
-    ];
-    level.lifePickups = lifeAnchors.map((anchor, index) => ({
-      id: `main-life-${index}`,
-      x: anchor.x + Math.max(34, Math.min(anchor.w - 34, anchor.w * (index === 1 ? .64 : .38))),
-      y: anchor.y - 48,
+    const fallbackHeartAnchor = highRouteLedges[1]
+      || highRouteLedges[0]
+      || ledges[Math.floor(ledges.length * .42)]
+      || safeAnchor;
+    const lifeAnchors = [.34, .68].map((ratio) => (
+      grounds[Math.min(grounds.length - 1, Math.max(0, Math.floor(grounds.length * ratio)))]
+      || fallbackHeartAnchor
+    ));
+    level.lifePickups = lifeAnchors.map((lifeAnchor, heartIndex) => ({
+      id: `main-life-${heartIndex}`,
+      x: lifeAnchor.x + Math.max(34, Math.min(lifeAnchor.w - 34, lifeAnchor.w * (heartIndex ? .38 : .64))),
+      y: lifeAnchor.y - 48,
       collected: false,
-      phase: index * 1.71 + level.index * .43,
+      phase: level.index * .43 + heartIndex * 1.7,
     }));
   }
 
@@ -1557,7 +1793,6 @@
   }
 
   function createSecretRoom(parentLevel) {
-    const itemMeta = REGIONAL_ITEMS[parentLevel.mood] || REGIONAL_ITEMS.forest;
     const roomId = parentLevel.index;
     const layout = SECRET_ROOM_LAYOUTS[roomId] || SECRET_ROOM_LAYOUTS[0];
     const grounds = layout.grounds.map(([x, y, w], index) => bonusGround(`b-g${index}`, x, y, w, layout.groundType));
@@ -1566,13 +1801,11 @@
     ));
     const platforms = [...grounds, ...ledges];
     const lastGround = grounds[grounds.length - 1];
-    const middleGround = grounds[Math.floor(grounds.length / 2)];
     const checkpoints = createCheckpointRoute(grounds, [.34, .68]);
     const sparkSpots = [
       ...ledges.slice(0, 8).map((platform) => [platform.x + platform.w * .5, platform.y - 54]),
       ...grounds.slice(1, 4).map((platform) => [platform.x + platform.w * .52, platform.y - 62]),
     ];
-    const treasureAnchors = [ledges[2], ledges[Math.floor(ledges.length * .62)], ledges[ledges.length - 2]];
     const room = {
       ...parentLevel,
       name: `Geheimlevel: ${layout.name}`,
@@ -1591,15 +1824,9 @@
       springs: layout.springs.map(([x, y]) => ({ x, y, w: 54, h: 18 })),
       hazards: layout.hazards.map(([x, y, range, speed], index) => ({ x, y, baseX: x, r: 24, range, speed, phase: index * 1.37 + .4 })),
       collectibles: sparkSpots.map(([x, y], index) => ({ id: `bonus-c-${index}`, x, y, collected: false, phase: index * .57 })),
-      items: [
-        bonusItem(roomId, "bonus-a", treasureAnchors[0].x + treasureAnchors[0].w * .5, treasureAnchors[0].y - 45, itemMeta),
-        bonusItem(roomId, "bonus-b", treasureAnchors[1].x + treasureAnchors[1].w * .5, treasureAnchors[1].y - 45, { name: "Glückstaler", type: "coin", color: "#e0b54d" }),
-        bonusItem(roomId, "bonus-c", treasureAnchors[2].x + treasureAnchors[2].w * .5, treasureAnchors[2].y - 45, { name: "Altes Grubenlicht", type: "lantern", color: "#f2a83d" }),
-      ],
+      items: [],
       lifePickups: [
-        { id: "bonus-life-a", x: grounds[1].x + grounds[1].w * .42, y: grounds[1].y - 48, collected: false, phase: .8 },
-        { id: "bonus-life-b", x: ledges[Math.floor(ledges.length * .5)].x + ledges[Math.floor(ledges.length * .5)].w * .5, y: ledges[Math.floor(ledges.length * .5)].y - 48, collected: false, phase: 2.4 },
-        { id: "bonus-life-c", x: lastGround.x + lastGround.w * .34, y: lastGround.y - 48, collected: false, phase: 4.1 },
+        { id: "bonus-life-a", x: ledges[Math.floor(ledges.length * .5)].x + ledges[Math.floor(ledges.length * .5)].w * .5, y: ledges[Math.floor(ledges.length * .5)].y - 48, collected: false, phase: 2.4 },
       ],
       goal: { x: lastGround.x + lastGround.w - 112, y: lastGround.y - 116, w: 72, h: 116, returnPortal: true },
       checkpoints,
@@ -1625,13 +1852,6 @@
       moving: Boolean(movement), moveRange: movement?.range || 0, moveSpeed: movement?.speed || 0,
       moveAxis: movement?.axis || "x", phase: movement?.phase || 0,
       ...(extra || {}),
-    };
-  }
-
-  function bonusItem(levelIndex, id, x, y, meta) {
-    return {
-      id, x, y, name: meta.name, type: meta.type, color: meta.color,
-      collected: game.foundItems.has(`${levelIndex}:${id}`),
     };
   }
 
@@ -1663,7 +1883,7 @@
     };
   }
 
-  function startLevel(index, { resetHearts = true } = {}) {
+  function startLevel(index) {
     clearTimeout(restartTimer);
     restartTimer = 0;
     clearTimeout(game.chapterBannerTimer);
@@ -1688,9 +1908,9 @@
     game.particles.length = 0;
     game.runStartedAt = performance.now();
     game.mode = "playing";
-    if (resetHearts) game.hearts = START_LIVES;
     game.lifeTalentUsed = false;
     game.safetyNetUsed = false;
+    game.runMistakes = 0;
     game.musicBeatAt = 0;
     game.musicStep = 0;
     closeAllPanels();
@@ -1792,11 +2012,11 @@
   }
 
   function closeAllPanels() {
-    [ui.start, ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((panel) => { panel.hidden = true; });
+    [ui.start, ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.stickers, ui.finish, ui.tutorial].forEach((panel) => { panel.hidden = true; });
   }
 
   function openPanel(panel) {
-    [ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.finish, ui.tutorial].forEach((item) => {
+    [ui.map, ui.pause, ui.options, ui.skills, ui.outfits, ui.inventory, ui.stickers, ui.finish, ui.tutorial].forEach((item) => {
       if (item !== panel) item.hidden = true;
     });
     panel.hidden = false;
@@ -1808,6 +2028,33 @@
     ui.renderModeValue.textContent = profile.performanceMode
       ? `Flüssig · ${profile.width} × ${profile.height}`
       : `Scharf · ${profile.width} × ${profile.height}`;
+  }
+
+  function exportProgress() {
+    const blob = new Blob([saveSystem.exportText(progressSnapshot())], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `schorsch-spielstand-v${GAME_VERSION}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    showToast("Spielstand exportiert – die JSON-Datei kann sicher aufbewahrt werden.");
+  }
+
+  async function importProgressFile(event) {
+    const [file] = event.target.files || [];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const text = await file.text();
+      if (!window.confirm("Soll der aktuelle Spielstand durch diese Datei ersetzt werden?")) return;
+      saveSystem.importText(text);
+      location.reload();
+    } catch (error) {
+      showToast(error?.message || "Der Spielstand konnte nicht importiert werden.");
+    }
   }
 
   function pauseGame(panel = ui.pause) {
@@ -1863,6 +2110,33 @@
     }
   }
 
+  function claimNewChapterRewards() {
+    const rewards = newlyUnlockedChapterRewards(game.levelMedals, [...game.claimedChapterRewards]);
+    for (const reward of rewards) {
+      game.claimedChapterRewards.add(reward.id);
+      game.wallet += reward.sparkBonus;
+      game.foundItems.add(`reward:${reward.id}`);
+    }
+    return rewards;
+  }
+
+  function renderFinishMedals(earned, previous, elapsedSeconds, foundItems, totalItems) {
+    ui.finishMedals.replaceChildren();
+    const details = {
+      time: `${formatTime(elapsedSeconds, true)} · Ziel ${formatTime(game.level.masteryTime, true)}`,
+      collector: `${foundItems}/${totalItems} Andenken entdeckt`,
+      flawless: game.runMistakes === 0 ? "Kein Leben verloren" : `${game.runMistakes} Leben verloren`,
+    };
+    for (const medal of MEDAL_DEFINITIONS) {
+      const earnedNow = Boolean(earned[medal.key]);
+      const ownedBefore = Boolean(previous?.[medal.key]);
+      const card = document.createElement("article");
+      card.className = `finish-medal${earnedNow ? " is-earned" : ""}${!ownedBefore && earnedNow ? " is-new" : ""}${ownedBefore && !earnedNow ? " is-owned" : ""}`;
+      card.innerHTML = `<span aria-hidden="true">${medal.mark}</span><b>${medal.title}</b><small>${details[medal.key]}</small><em>${!ownedBefore && earnedNow ? "Neu verdient" : earnedNow ? "Geschafft" : ownedBefore ? "Bereits erhalten" : "Noch offen"}</em>`;
+      ui.finishMedals.append(card);
+    }
+  }
+
   function completeLevel() {
     if (game.mode !== "playing") return;
     game.mode = "finished";
@@ -1872,25 +2146,46 @@
     if (isNewBest) game.bestTimes[game.levelIndex] = elapsedSeconds;
     game.completed.add(game.levelIndex);
     game.unlocked = Math.max(game.unlocked, Math.min(LEVELS.length, game.levelIndex + 2));
-    saveProgress();
-    playJingle();
     const bonusRoom = game.level.secretRoom;
     const totalSparks = game.level.collectibles.length + (bonusRoom?.collectibles.length || 0);
     const foundSparks = game.level.collectibles.filter((item) => item.collected).length
       + (bonusRoom?.collectibles.filter((item) => item.collected).length || 0);
-    const totalItems = (game.level.items?.length || 0) + (bonusRoom?.items?.length || 0);
-    const foundItems = (game.level.items?.filter((item) => item.collected).length || 0)
-      + (bonusRoom?.items?.filter((item) => item.collected).length || 0);
+    const totalItems = expectedLevelItemCount(game.level);
+    const foundItems = countFoundLevelItems(game.foundItems, game.levelIndex);
+    const previousMedals = game.levelMedals[game.levelIndex] || {};
+    const earnedMedals = calculateLevelMedals({
+      elapsedSeconds,
+      masteryTime: game.level.masteryTime,
+      foundItems,
+      totalItems,
+      mistakes: game.runMistakes,
+    });
+    game.levelMedals = mergeLevelMedals(game.levelMedals, game.levelIndex, earnedMedals);
+    const newMedalCount = MEDAL_DEFINITIONS.filter((medal) => earnedMedals[medal.key] && !previousMedals[medal.key]).length;
+    const chapterRewards = claimNewChapterRewards();
+    saveProgress();
+    updateHud();
+    playJingle();
     ui.finishSparkCount.textContent = `${foundSparks}/${totalSparks}`;
     ui.finishItemCount.textContent = `${foundItems}/${totalItems}`;
     ui.finishTime.textContent = formatTime(elapsedSeconds, true);
     ui.finishBestTime.textContent = formatTime(Number(game.bestTimes[game.levelIndex]), true);
     ui.finishBestTime.parentElement?.classList.toggle("is-record", isNewBest);
+    renderFinishMedals(earnedMedals, previousMedals, elapsedSeconds, foundItems, totalItems);
+    renderFinishStickerShop();
+    ui.finishReward.hidden = chapterRewards.length === 0;
+    if (chapterRewards.length) {
+      const reward = chapterRewards[0];
+      ui.finishReward.textContent = `${reward.mark} Kapitel gemeistert: ${reward.title} und ${reward.sparkBonus} Bergfunken freigeschaltet!`;
+    }
     if (game.level.chapter) {
       ui.finishMission.hidden = false;
-      ui.finishMission.textContent = isNewBest
-        ? `★ Neuer Rekord · ${game.level.chapter.finale.doneLabel}`
-        : `✓ Reiseauftrag erfüllt · ${game.level.chapter.finale.doneLabel}`;
+      const highlights = [
+        isNewBest ? "★ Neuer Rekord" : "✓ Reiseauftrag erfüllt",
+        newMedalCount ? `${newMedalCount} neue ${newMedalCount === 1 ? "Medaille" : "Medaillen"}` : "Meisterschaft aktualisiert",
+        game.level.chapter.finale.doneLabel,
+      ];
+      ui.finishMission.textContent = highlights.join(" · ");
     } else {
       ui.finishMission.hidden = true;
     }
@@ -1920,6 +2215,29 @@
 
   function nextLevel() {
     startLevel(game.levelIndex === LEVELS.length - 1 ? 0 : game.levelIndex + 1);
+  }
+
+  function creditBergfunke(level, crystal) {
+    const collectionMultiplier = Math.max(1, Number(level.bonusMultiplier) || 1);
+    const claimId = `${level.index}:${crystal.id}`;
+    const firstDiscovery = !game.claimedSparks.has(claimId);
+    if (firstDiscovery) game.claimedSparks.add(claimId);
+    game.wallet += collectionMultiplier;
+    saveProgress();
+    return { collectionMultiplier, firstDiscovery };
+  }
+
+  function creditWanderherz(level, life) {
+    const claimId = heartClaimId(level, life);
+    const firstDiscovery = !game.claimedHearts.has(claimId);
+    life.collected = true;
+    if (firstDiscovery) game.claimedHearts.add(claimId);
+    const talentBonus = game.talents.has("extraHeart") && !game.lifeTalentUsed;
+    const gained = Math.min(MAX_LIVES - game.hearts, talentBonus ? 2 : 1);
+    game.hearts = Math.min(MAX_LIVES, game.hearts + gained);
+    if (talentBonus) game.lifeTalentUsed = true;
+    saveProgress();
+    return { firstDiscovery, gained, claimId, talentBonus };
   }
 
   function update(dt) {
@@ -2114,16 +2432,9 @@
       }
       if (rectsOverlap(player, box)) {
         crystal.collected = true;
-        const collectionMultiplier = level.bonusMultiplier || 1;
+        const { collectionMultiplier, firstDiscovery } = creditBergfunke(level, crystal);
         game.sparks += collectionMultiplier;
         level.collected += 1;
-        const claimId = `${level.index}:${crystal.id}`;
-        const firstDiscovery = !game.claimedSparks.has(claimId);
-        if (firstDiscovery) {
-          game.claimedSparks.add(claimId);
-          game.wallet += collectionMultiplier;
-          saveProgress();
-        }
         emitCrystalBurst(crystal.x, crystal.y, level.accent);
         playTone(660 + (game.sparks % 5) * 75, 0.09, "sine", 0.045, 120);
         if (firstDiscovery && collectionMultiplier > 1) showToast(`Tauchbonus ×${collectionMultiplier}: +${collectionMultiplier} Bergfunken!`);
@@ -2160,19 +2471,10 @@
       if (life.collected) continue;
       const box = { x: life.x - 22, y: life.y - 24, w: 44, h: 48 };
       if (!rectsOverlap(player, box)) continue;
-      life.collected = true;
-      if (game.hearts >= MAX_LIVES) {
-        showToast("999 Leben – mehr passen nicht in Schorschs Rucksack!");
-      } else {
-        const talentBonus = game.talents.has("extraHeart") && !game.lifeTalentUsed;
-        const collectionMultiplier = level.bonusMultiplier || 1;
-        const gained = Math.min(MAX_LIVES - game.hearts, (talentBonus ? 2 : 1) * collectionMultiplier);
-        game.hearts = Math.min(MAX_LIVES, game.hearts + gained);
-        if (talentBonus) game.lifeTalentUsed = true;
-        showToast(collectionMultiplier > 1
-          ? `Tauchbonus ×${collectionMultiplier}: ${gained} Leben dazu!`
-          : talentBonus ? `Wanderherz gefunden – ${gained} Leben dazu!` : "Wanderherz gefunden – ein Leben dazu!");
-      }
+      const { gained, talentBonus } = creditWanderherz(level, life);
+      if (gained === 0) showToast(`${MAX_LIVES} Leben – mehr passen nicht in Schorschs Rucksack!`);
+      else if (talentBonus) showToast(`Wanderherz verstärkt – ${gained} Leben dazu!`);
+      else showToast("Wanderherz gesammelt – ein Leben dazu!");
       burst(life.x, life.y, "#e96372", 20, 220);
       playTone(520, .1, "sine", .04, 180);
       window.setTimeout(() => playTone(760, .13, "triangle", .025, 100), 75);
@@ -2221,10 +2523,7 @@
         const dx = player.x + player.w / 2 - hazard.x;
         const dy = player.y + player.h / 2 - hazard.y;
         if (Math.hypot(dx, dy) < hazard.r + 25) {
-          const hazardName = level.underwater
-            ? "ein Strömungsgeist"
-            : "ein Rußwichtel";
-          loseHeart(`Hoppla – ${hazardName}!`);
+          loseHeart(`Hoppla – ${hazard.enemyName || "das Fantasiewesen"} kugelt in den Weg!`);
           return;
         }
       }
@@ -2238,6 +2537,7 @@
     if (player.y > H + 180) {
       if (game.talents.has("safetyNet") && !game.safetyNetUsed) {
         game.safetyNetUsed = true;
+        game.runMistakes += 1;
         player.x = player.respawnX;
         player.y = player.respawnY;
         player.vx = 0;
@@ -2273,18 +2573,22 @@
   function loseHeart(message) {
     const player = game.player;
     if (!player || player.invincible > 0 || game.mode !== "playing") return false;
+    game.runMistakes += 1;
     game.hearts = Math.max(0, game.hearts - 1);
     game.shake = 0.45;
     burst(player.x + player.w / 2, player.y + player.h / 2, "#ffffff", 14, 220);
     playTone(180, 0.16, "sawtooth", 0.03, -90);
     if (game.hearts <= 0) {
+      game.hearts = START_LIVES;
+      saveProgress();
       game.mode = "restarting";
       updateHud();
-      showToast("Alle Leben aufgebraucht – das Level beginnt von vorn!");
+      showToast(`Kurze Verschnaufpause – mit ${START_LIVES} Herzen beginnt das Level neu. Dein Fortschritt bleibt erhalten!`);
       playTone(120, .42, "triangle", .045, -50);
       restartTimer = window.setTimeout(() => startLevel(game.levelIndex), 950);
       return true;
     }
+    saveProgress();
     showToast(game.hearts === 1 ? `${message} Noch ein Leben.` : `${message} Noch ${game.hearts} Leben.`);
     player.x = player.respawnX;
     player.y = player.respawnY;
@@ -2606,6 +2910,14 @@
       renderSkillTree();
       openOverlay(ui.skills);
     });
+    document.querySelector("#stickerButton").addEventListener("click", () => {
+      renderStickerAlbum();
+      openOverlay(ui.stickers);
+    });
+    document.querySelector("#menuStickerButton").addEventListener("click", () => {
+      renderStickerAlbum();
+      openOverlay(ui.stickers);
+    });
     document.querySelector("#inventoryButton").addEventListener("click", () => {
       renderInventory();
       openOverlay(ui.inventory);
@@ -2622,6 +2934,15 @@
     ui.optionsButton.addEventListener("click", () => {
       updateOptionsPanel();
       openOverlay(ui.options);
+    });
+    ui.exportSaveButton.addEventListener("click", exportProgress);
+    ui.importSaveButton.addEventListener("click", () => ui.importSaveInput.click());
+    ui.importSaveInput.addEventListener("change", importProgressFile);
+    ui.stickerPackButton.addEventListener("click", openStickerPack);
+    ui.stickerBuyButton.addEventListener("click", () => buySticker());
+    ui.finishStickerAlbumButton.addEventListener("click", () => {
+      renderStickerAlbum([...game.recentStickerIds][0]);
+      openOverlay(ui.stickers);
     });
     ui.tutorialButton.addEventListener("click", closeChapterTutorial);
     document.querySelector("#resumeButton").addEventListener("click", resumeGame);
@@ -2677,6 +2998,178 @@
     });
   }
 
+  function installTestApi() {
+    if (!TEST_MODE) return;
+
+    function collectEverything(level) {
+      for (const collectible of level.collectibles || []) collectible.collected = true;
+      for (const item of level.items || []) {
+        item.collected = true;
+        game.foundItems.add(`${level.index}:${item.id}`);
+      }
+      if (level.secretEntrance) {
+        level.secret.found = true;
+        level.secretRoom ||= createSecretRoom(level);
+        for (const collectible of level.secretRoom.collectibles || []) collectible.collected = true;
+        for (const item of level.secretRoom.items || []) {
+          item.collected = true;
+          game.foundItems.add(`${level.index}:${item.id}`);
+        }
+      }
+    }
+
+    function prepareLevel(index) {
+      game.tutorialsSeen.add(index);
+      startLevel(index);
+      if (game.level.chapter) {
+        game.level.chapter.task.nodes.forEach((node) => { node.active = true; });
+        game.level.chapter.task.progress = game.level.chapter.task.nodes.length;
+        game.level.chapter.task.complete = true;
+        game.level.chapter.finale.state = "complete";
+      }
+      game.mode = "playing";
+      return game.level;
+    }
+
+    window.__SCHORSCH_TEST_API__ = {
+      levelCount: LEVELS.length,
+      bossLevelIndexes: CAMPAIGN_CHAPTERS
+        .map((chapter, index) => chapter.bossHits ? index : -1)
+        .filter((index) => index >= 0),
+      finishLevel(index, { elapsedSeconds = LEVELS[index].masteryTime - 1, collectAll = true, mistakes = 0 } = {}) {
+        const level = prepareLevel(index);
+        if (collectAll) collectEverything(level);
+        game.runMistakes = mistakes;
+        game.runStartedAt = performance.now() - elapsedSeconds * 1000;
+        completeLevel();
+        return this.snapshot();
+      },
+      defeatBoss(index) {
+        const level = prepareLevel(index);
+        const finale = level.chapter?.finale;
+        const boss = finale?.boss;
+        if (!boss) throw new Error(`Level ${index + 1} besitzt keinen Endgegner.`);
+        finale.state = "active";
+        resetChapterBoss(finale);
+        boss.active = true;
+        for (let hit = 0; hit < boss.maxHp; hit += 1) {
+          damageBoss(boss);
+          boss.invincible = 0;
+        }
+        if (boss.defeated) completeChapterFinale(level);
+        return { name: boss.name, hp: boss.hp, defeated: boss.defeated, finale: finale.state };
+      },
+      collectSpark(index) {
+        const level = prepareLevel(index);
+        const crystal = level.collectibles[0];
+        const before = game.wallet;
+        crystal.collected = true;
+        const result = creditBergfunke(level, crystal);
+        updateHud();
+        return { before, after: game.wallet, ...result };
+      },
+      collectHeart(index) {
+        const level = prepareLevel(index);
+        const life = (level.lifePickups || []).find((pickup) => !pickup.collected);
+        const before = game.hearts;
+        if (!life) return { before, after: game.hearts, firstDiscovery: false, gained: 0 };
+        const result = creditWanderherz(level, life);
+        updateHud();
+        return { before, after: game.hearts, ...result };
+      },
+      rescueAtZero(index) {
+        prepareLevel(index);
+        const before = this.snapshot();
+        game.hearts = 1;
+        game.player.invincible = 0;
+        loseHeart("Testtreffer.");
+        const after = this.snapshot();
+        const saved = saveSystem.load();
+        clearTimeout(restartTimer);
+        restartTimer = 0;
+        return { before, after, saved };
+      },
+      openStickerPack() {
+        const beforeWallet = game.wallet;
+        const beforeCount = game.ownedStickers.size;
+        const rewards = openStickerPack();
+        return {
+          beforeWallet,
+          afterWallet: game.wallet,
+          beforeCount,
+          afterCount: game.ownedStickers.size,
+          rewards: rewards.map((sticker) => sticker.id),
+        };
+      },
+      buySticker(stickerId = null) {
+        const target = stickerId
+          ? STICKERS.find((sticker) => sticker.id === stickerId)
+          : STICKERS.find((sticker) => !game.ownedStickers.has(sticker.id));
+        if (!target) return null;
+        const beforeWallet = game.wallet;
+        const beforeCount = game.ownedStickers.size;
+        const purchased = buySticker(target.id);
+        return {
+          id: target.id,
+          price: target.price,
+          rarity: target.rarity,
+          beforeWallet,
+          afterWallet: game.wallet,
+          beforeCount,
+          afterCount: game.ownedStickers.size,
+          purchased: Boolean(purchased),
+        };
+      },
+      visitLevel(index) {
+        prepareLevel(index);
+        return this.snapshot();
+      },
+      collectionLayout(index) {
+        const level = createLevel(index);
+        const secretRoom = level.secretEntrance ? createSecretRoom(level) : null;
+        return {
+          overlaps: collectionOverlapCount(level) + (secretRoom ? collectionOverlapCount(secretRoom) : 0),
+          overlapDetails: [...collectionOverlapPairs(level), ...(secretRoom ? collectionOverlapPairs(secretRoom) : [])],
+          hearts: (level.lifePickups || []).length,
+          secretHearts: (secretRoom?.lifePickups || []).length,
+          sparks: (level.collectibles || []).length,
+          secretSparks: (secretRoom?.collectibles || []).length,
+          enemyKinds: [...new Set([...(level.hazards || []), ...(secretRoom?.hazards || [])]
+            .filter((hazard) => hazard.kind !== "sunBoost")
+            .map((hazard) => hazard.enemyKind))],
+          enemies: (level.hazards || []).filter((hazard) => hazard.kind !== "sunBoost").length,
+          secretEnemies: (secretRoom?.hazards || []).filter((hazard) => hazard.kind !== "sunBoost").length,
+          objects: collectionObjects(level).length + (secretRoom ? collectionObjects(secretRoom).length : 0),
+          souvenirs: [...(level.items || []), ...(secretRoom?.items || [])].map((item) => item.name),
+        };
+      },
+      snapshot() {
+        return {
+          mode: game.mode,
+          levelIndex: game.levelIndex,
+          unlocked: game.unlocked,
+          completed: [...game.completed],
+          levelMedals: JSON.parse(JSON.stringify(game.levelMedals)),
+          claimedChapterRewards: [...game.claimedChapterRewards],
+          ownedStickers: [...game.ownedStickers],
+          wallet: game.wallet,
+          hearts: game.hearts,
+          claimedHearts: [...game.claimedHearts],
+          souvenirs: [...game.foundItems].filter((entry) => !String(entry).startsWith("reward:")).length,
+          finishMedals: [...ui.finishMedals.children].map((element) => ({
+            className: element.className,
+            text: element.textContent,
+          })),
+          finishStickerShop: {
+            hidden: ui.finishStickers.hidden,
+            images: ui.finishStickerGrid.querySelectorAll("img").length,
+            text: ui.finishStickers.textContent,
+          },
+        };
+      },
+    };
+  }
+
   function init() {
     validateCampaignChapters();
     if (!game.itemOnlyMigrationDone) {
@@ -2694,6 +3187,12 @@
     game.talents = new Set([...game.talents]
       .filter((id) => game.ownedTalents.has(id))
       .slice(0, MAX_ACTIVE_TALENTS));
+    game.claimedChapterRewards = new Set([...game.claimedChapterRewards]
+      .filter((id) => CHAPTER_REWARDS.some((reward) => reward.id === id)));
+    game.foundItems = new Set(normalizeFoundItems([...game.foundItems], LEVELS));
+    game.ownedStickers = new Set(normalizeStickerIds([...game.ownedStickers]));
+    for (const rewardId of game.claimedChapterRewards) game.foundItems.add(`reward:${rewardId}`);
+    claimNewChapterRewards();
     bindControls();
     bindUi();
     resizeCanvas();
@@ -2704,6 +3203,7 @@
     game.player = createPlayer(game.level.start, game.level.underwater);
     game.mode = "menu";
     saveProgress();
+    installTestApi();
     window.addEventListener("resize", scheduleCanvasResize, { passive: true });
     window.visualViewport?.addEventListener("resize", scheduleCanvasResize, { passive: true });
     document.addEventListener("fullscreenchange", scheduleCanvasResize);

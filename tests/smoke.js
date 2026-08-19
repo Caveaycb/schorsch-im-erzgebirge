@@ -37,8 +37,18 @@
     await test("Alle Kernmodule sind geladen", () => {
       [
         "LEVELS",
+        "ENEMY_PROFILES",
         "GAME_VERSION",
+        "STICKERS",
+        "STICKER_CATEGORIES",
+        "stickerPrice",
+        "nextStickerRewards",
         "CAMPAIGN_CHAPTERS",
+        "MEDAL_DEFINITIONS",
+        "CHAPTER_REWARDS",
+        "calculateLevelMedals",
+        "normalizeFoundItems",
+        "migrateProgress",
         "movementTuning",
         "landingFeedback",
         "damageBoss",
@@ -48,6 +58,7 @@
         "createUiActions",
         "createAudioEngine",
         "createRenderer",
+        "createPlayerRenderer",
         "computeCanvasMetrics",
         "createDebugTools",
       ]
@@ -59,8 +70,85 @@
       assert(api.CAMPAIGN_CHAPTERS.length === api.LEVELS.length, "Aufträge und Level sind nicht vollständig");
     });
 
+    await test("Das Stickeralbum enthält exakt 100 Motive aus sieben Energiewelten", () => {
+      assert(api.STICKERS.length === 100, `Stickeranzahl ist ${api.STICKERS.length} statt 100`);
+      assert(new Set(api.STICKERS.map((sticker) => sticker.id)).size === 100, "Sticker-IDs wiederholen sich");
+      assert(new Set(api.STICKERS.map((sticker) => sticker.image)).size === 100, "Stickerbilder wiederholen sich");
+      const counts = api.STICKERS.reduce((result, sticker) => ({ ...result, [sticker.category]: (result[sticker.category] || 0) + 1 }), {});
+      assert(Object.keys(api.STICKER_CATEGORIES).length === 7, "Es existieren nicht sieben Energiewelten");
+      assert(counts.pv === 15 && counts.heat === 15, "PV und Wärme besitzen nicht jeweils 15 Motive");
+      ["electricity", "gas", "water", "fiber", "emobility"].forEach((category) => assert(counts[category] === 14, `${category} besitzt nicht 14 Motive`));
+      const rewards = api.nextStickerRewards(["sticker-001"], 5);
+      assert(rewards.length === 5 && rewards.every((sticker) => sticker.id !== "sticker-001"), "Stickerbelohnungen enthalten Duplikate");
+      const prices = api.STICKERS.map((sticker) => sticker.price);
+      assert(Math.max(...prices) === 25 && Math.min(...prices) >= 1, "Stickerpreise liegen nicht zwischen 1 und 25 Bergfunken");
+      assert(new Set(prices).size >= 6, "Stickerpreise besitzen zu wenig Abstufungen");
+      assert(api.STICKERS.find((sticker) => sticker.id === "sticker-100")?.price === 25, "Legendärer Sticker ist nicht die wertvollste Karte");
+      assert(api.STICKERS.filter((sticker) => sticker.price >= 22).every((sticker) => ["holo", "legendary"].includes(sticker.rarity)), "Premiumpreise und Seltenheiten passen nicht zusammen");
+    });
+
+    await test("Jedes Level besitzt eine eigene niedliche Fantasie-Gegnerart", () => {
+      assert(api.ENEMY_PROFILES.length === api.LEVELS.length, "Gegnerprofile und Levelzahl stimmen nicht überein");
+      assert(new Set(api.ENEMY_PROFILES.map((enemy) => enemy.kind)).size === api.LEVELS.length, "Gegnerarten wiederholen sich");
+      assert(new Set(api.ENEMY_PROFILES.map((enemy) => enemy.name)).size === api.LEVELS.length, "Gegnernamen wiederholen sich");
+      api.ENEMY_PROFILES.forEach((enemy) => {
+        assert(enemy.body && enemy.accent && enemy.highlight && enemy.outline, `${enemy.name} besitzt keine vollständige Farbwelt`);
+        assert(["hop", "loop", "drift", "float", "swim"].includes(enemy.motion), `${enemy.name} besitzt keine eigene gültige Bewegung`);
+      });
+    });
+
     await test("Die sichtbare Spielversion folgt SemVer", () => {
       assert(/^\d+\.\d+\.\d+$/.test(api.GAME_VERSION), "Spielversion ist nicht im Format x.y.z");
+    });
+
+    await test("Alle Level besitzen eine erreichbare Meisterzeit", () => {
+      const expectedTimes = [84, 100, 100, 104, 108, 116, 112, 116, 120, 128, 100, 104];
+      api.LEVELS.forEach((level, index) => {
+        assert(Number.isFinite(level.masteryTime) && level.masteryTime >= 60, `Level ${index + 1}: Meisterzeit fehlt`);
+        assert(level.masteryTime === expectedTimes[index], `Level ${index + 1}: Meisterzeit wurde nicht exakt um 20 % reduziert`);
+      });
+    });
+
+    await test("Drei Medaillen werden unabhängig und dauerhaft bewertet", () => {
+      const earned = api.calculateLevelMedals({ elapsedSeconds: 89, masteryTime: 90, foundItems: 7, totalItems: 7, mistakes: 1 });
+      assert(earned.time && earned.collector && !earned.flawless, "Medaillenkriterien sind nicht unabhängig");
+      const merged = api.mergeLevelMedals({ 0: { flawless: true } }, 0, earned);
+      assert(merged[0].time && merged[0].collector && merged[0].flawless, "Frühere Medaillen gehen beim Zusammenführen verloren");
+    });
+
+    await test("Alte Spielstände migrieren verlustfrei auf Schema 4", () => {
+      const migrated = api.migrateProgress({ currentLevel: 4, unlocked: 6, completed: [0, 1], wallet: 37, bestTimes: { 0: 82.4 } }, 12);
+      assert(migrated.schemaVersion === 4, "Speicherschema wurde nicht aktualisiert");
+      assert(migrated.currentLevel === 4 && migrated.unlocked === 6, "Reisefortschritt ging bei der Migration verloren");
+      assert(migrated.wallet === 37 && migrated.bestTimes[0] === 82.4, "Werte gingen bei der Migration verloren");
+      assert(migrated.hearts === 5 && migrated.claimedHearts.length === 0, "Fünf Startleben oder Wanderherz-Historie fehlen");
+      assert(migrated.levelMedals && migrated.claimedChapterRewards.length === 0, "Fortschrittsfelder fehlen");
+      assert(Array.isArray(migrated.ownedStickers) && migrated.ownedStickers.length === 0, "Stickersammlung fehlt");
+    });
+
+    await test("Spielstände lassen sich als JSON exportieren und wieder importieren", () => {
+      const entries = new Map();
+      const storage = {
+        getItem: (key) => entries.get(key) || null,
+        setItem: (key, value) => entries.set(key, value),
+      };
+      const saves = api.createSaveSystem({ storage, gameVersion: api.GAME_VERSION, levelCount: 12 });
+      const text = saves.exportText({ currentLevel: 3, unlocked: 5, wallet: 42, hearts: 7, claimedHearts: ["0:main:main-life-0"], ownedStickers: ["sticker-001", "sticker-001", "ungueltig"], levelMedals: { 0: { time: true } } });
+      const imported = saves.importText(text);
+      assert(imported.currentLevel === 3 && imported.unlocked === 5 && imported.wallet === 42, "Import verändert den Fortschritt");
+      assert(imported.hearts === 7 && imported.claimedHearts.length === 1, "Gesammelte Wanderherzen fehlen nach dem Import");
+      assert(imported.ownedStickers.length === 1 && imported.ownedStickers[0] === "sticker-001", "Sticker werden nicht sicher gespeichert");
+      assert(imported.levelMedals[0].time, "Medaillen fehlen nach dem Import");
+      assert(entries.has(api.SAVE_STORAGE_KEY), "Import wurde nicht im Ziel-Speicher abgelegt");
+    });
+
+    await test("Doppelte alte Reiseandenken werden pro Region zusammengeführt", () => {
+      const normalized = api.normalizeFoundItems([
+        "0:main-a", "0:main-b", "0:bonus-a", "1:high-route-1", "1:bonus-c", "reward:forest-master",
+      ], api.LEVELS);
+      assert(normalized.length === 3, `Erwartet werden 2 Andenken und 1 Kapitelbelohnung, gefunden wurden ${normalized.length}`);
+      assert(normalized.includes("0:main-a") && normalized.includes("1:main-a"), "Kanonische Regionsandenken fehlen");
+      assert(normalized.includes("reward:forest-master"), "Kapitelbelohnung ging bei der Bereinigung verloren");
     });
 
     await test("Jeder Reiseauftrag enthält drei Ziele und ein gültiges Finale", () => {
@@ -160,6 +248,9 @@
         const doc = frame.contentDocument;
         assert(doc.querySelector("#gameCanvas")?.width > 0, "Canvas wurde nicht initialisiert");
         assert(doc.querySelector("#startPanel") && !doc.querySelector("#startPanel").hidden, "Startmenü fehlt");
+        assert(doc.querySelectorAll(".control-row").length === 4, "Steuerung ist nicht vollständig untereinander aufgebaut");
+        assert(doc.querySelectorAll(".hero-spark").length >= 5 && doc.querySelector(".hero-pedestal"), "Schorschs Startbühne ist unvollständig");
+        assert(doc.querySelector("#stickerPanel") && doc.querySelector("#stickerGrid"), "Stickeralbum fehlt in der Oberfläche");
         assert(doc.querySelector("#versionValue")?.textContent === `v${api.GAME_VERSION}`, "Versionsanzeige fehlt");
         assert(doc.querySelector("#loadingScreen")?.classList.contains("is-hidden"), "Ladebildschirm bleibt aktiv");
       });

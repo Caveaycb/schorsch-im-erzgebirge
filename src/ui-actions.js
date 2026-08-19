@@ -10,6 +10,17 @@
       HAND_ITEMS,
       TALENTS,
       REGIONAL_ITEMS,
+      MEDAL_DEFINITIONS,
+      CHAPTER_REWARDS,
+      STICKERS,
+      STICKER_CATEGORIES,
+      STICKER_PACK_COST,
+      STICKER_PACK_SIZE,
+      nextStickerRewards,
+      stickerCategoryCounts,
+      normalizeMedalRecord,
+      medalCount,
+      chapterRewardStatuses,
       MAX_LIVES,
       MAX_ACTIVE_TALENTS,
       formatTime,
@@ -21,6 +32,8 @@
       singleOutfitLoadout,
     } = runtime;
     let toastTimer = 0;
+    let activeStickerFilter = "all";
+    let activeStickerSelectionId = null;
 
   function showToast(message) {
     ui.toast.textContent = message;
@@ -29,9 +42,13 @@
     toastTimer = setTimeout(() => ui.toast.classList.remove("is-visible"), 2400);
   }
 
+  function travelSouvenirEntries(foundItems) {
+    return [...(foundItems || [])].filter((entry) => !String(entry).startsWith("reward:"));
+  }
+
   function updateHud() {
     ui.sparkCount.textContent = game.wallet;
-    ui.itemCount.textContent = game.foundItems.size;
+    ui.itemCount.textContent = travelSouvenirEntries(game.foundItems).length;
     ui.shopWallet.textContent = game.wallet;
     ui.skillsWallet.textContent = game.wallet;
     game.hearts = Math.max(0, Math.min(MAX_LIVES, game.hearts));
@@ -209,6 +226,10 @@
   }
 
   function inventoryEntry(entry) {
+    if (entry.startsWith("reward:")) {
+      const reward = CHAPTER_REWARDS.find((item) => item.id === entry.slice("reward:".length));
+      if (reward) return { name: reward.title, type: "mastery", mark: reward.mark, color: reward.color, where: `${reward.subtitle} · alle Medaillen` };
+    }
     const [levelPart, itemId = ""] = entry.split(":");
     const levelIndex = Number(levelPart);
     const level = LEVELS[levelIndex] || LEVELS[0];
@@ -235,7 +256,7 @@
 
   function renderInventory() {
     ui.inventoryGrid.replaceChildren();
-    const entries = [...game.foundItems].sort((a, b) => a.localeCompare(b, "de"));
+    const entries = travelSouvenirEntries(game.foundItems).sort((a, b) => a.localeCompare(b, "de"));
     ui.inventoryCount.textContent = entries.length;
     if (!entries.length) {
       ui.inventoryGrid.innerHTML = `<p class="inventory-empty">Noch ist der Rucksack leer. Folge hohen Pfaden und geheimen Stolleneingängen für besondere Fundstücke.</p>`;
@@ -246,13 +267,163 @@
       const card = document.createElement("article");
       card.className = "inventory-card";
       card.style.setProperty("--item-color", item.color);
-      card.innerHTML = `<span class="inventory-icon" aria-hidden="true">${inventoryMark(item.type)}</span><b>${item.name}</b><small>${item.where}</small>`;
+      card.innerHTML = `<span class="inventory-icon" aria-hidden="true">${item.mark || inventoryMark(item.type)}</span><b>${item.name}</b><small>${item.where}</small>`;
       ui.inventoryGrid.append(card);
+    }
+  }
+
+  function showStickerPreview(sticker) {
+    if (!sticker) return;
+    const owned = game.ownedStickers.has(sticker.id);
+    const category = STICKER_CATEGORIES[sticker.category];
+    activeStickerSelectionId = sticker.id;
+    const placeholder = ui.stickerPreviewCard.querySelector(".sticker-preview-art > span");
+    placeholder.hidden = true;
+    ui.stickerPreviewImage.hidden = false;
+    ui.stickerPreviewImage.src = sticker.image;
+    ui.stickerPreviewImage.alt = `${sticker.name}, Sticker aus ${category.longLabel}`;
+    ui.stickerPreviewNumber.textContent = `Nr. ${String(sticker.number).padStart(3, "0")} · ${sticker.rarity === "legendary" ? "Legendär" : sticker.rarity === "holo" ? "Holo" : sticker.rarity === "shiny" ? "Glitzer" : "Sammlung"}`;
+    ui.stickerPreviewName.textContent = sticker.name;
+    ui.stickerPreviewCategory.textContent = `${category.mark} ${category.longLabel}`;
+    ui.stickerPreviewDescription.textContent = sticker.description;
+    ui.stickerPreviewCard.classList.toggle("is-premium", sticker.price >= 22);
+    ui.stickerPreviewCard.classList.toggle("is-legendary", sticker.rarity === "legendary");
+    ui.stickerBuyButton.disabled = owned;
+    ui.stickerBuyButton.textContent = owned ? "Gesammelt ✓" : `Kaufen · ${sticker.price} ◆`;
+  }
+
+  function renderStickerFilters(counts) {
+    ui.stickerFilters.replaceChildren();
+    const filters = [
+      { id: "all", label: "Alle", mark: "★", color: "#b44859", owned: game.ownedStickers.size, total: STICKERS.length },
+      ...Object.values(STICKER_CATEGORIES).map((category) => ({ ...category, ...counts[category.id] })),
+    ];
+    for (const filter of filters) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `sticker-filter${activeStickerFilter === filter.id ? " is-active" : ""}`;
+      button.style.setProperty("--filter-color", filter.color);
+      button.innerHTML = `<i aria-hidden="true">${filter.mark}</i>${filter.label} <small>${filter.owned}/${filter.total}</small>`;
+      button.addEventListener("click", () => {
+        activeStickerFilter = filter.id;
+        renderStickerAlbum();
+      });
+      ui.stickerFilters.append(button);
+    }
+  }
+
+  function renderStickerAlbum(selectedStickerId = null) {
+    const ownedCount = game.ownedStickers.size;
+    const remaining = STICKERS.length - ownedCount;
+    const counts = stickerCategoryCounts([...game.ownedStickers]);
+    ui.stickerCount.textContent = ownedCount;
+    ui.stickerWallet.textContent = game.wallet;
+    ui.stickerProgressBar.style.width = `${ownedCount / STICKERS.length * 100}%`;
+    ui.stickerProgressText.textContent = remaining
+      ? `Noch ${remaining} ${remaining === 1 ? "Motiv" : "Motive"} bis zum vollständigen Album`
+      : "Album vollständig · alle 100 Energie-Sticker gesammelt!";
+    ui.stickerPackButton.disabled = remaining === 0;
+    ui.stickerPackButton.textContent = remaining === 0 ? "Album vollständig ✓" : `3er-Pack · ${STICKER_PACK_COST} ◆`;
+    renderStickerFilters(counts);
+
+    ui.stickerGrid.replaceChildren();
+    const stickers = activeStickerFilter === "all"
+      ? STICKERS
+      : STICKERS.filter((sticker) => sticker.category === activeStickerFilter);
+    for (const sticker of stickers) {
+      const owned = game.ownedStickers.has(sticker.id);
+      const category = STICKER_CATEGORIES[sticker.category];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `sticker-card${owned ? "" : " is-locked"}${sticker.rarity !== "standard" ? " is-shiny" : ""}${sticker.price >= 22 ? " is-premium" : ""}${sticker.rarity === "legendary" ? " is-legendary" : ""}${game.recentStickerIds?.has(sticker.id) ? " is-new" : ""}`;
+      button.style.setProperty("--sticker-color", category.color);
+      button.setAttribute("aria-label", owned ? `${sticker.name} ansehen` : `${sticker.name} für ${sticker.price} Bergfunken auswählen`);
+      button.innerHTML = `<span>${String(sticker.number).padStart(3, "0")}</span><img src="${sticker.image}" alt="" loading="lazy" decoding="async" /><b>${sticker.name}</b><em>${owned ? "Gesammelt" : `${sticker.price} ◆`}</em>`;
+      button.addEventListener("click", () => showStickerPreview(sticker));
+      ui.stickerGrid.append(button);
+    }
+
+    const selected = STICKERS.find((sticker) => sticker.id === selectedStickerId)
+      || STICKERS.find((sticker) => sticker.id === activeStickerSelectionId)
+      || STICKERS.find((sticker) => game.ownedStickers.has(sticker.id))
+      || stickers[0];
+    if (selected) showStickerPreview(selected);
+  }
+
+  function buySticker(stickerId = activeStickerSelectionId) {
+    const sticker = STICKERS.find((entry) => entry.id === stickerId);
+    if (!sticker) return null;
+    if (game.ownedStickers.has(sticker.id)) {
+      showToast(`${sticker.name} ist bereits in deinem Album.`);
+      return null;
+    }
+    if (game.wallet < sticker.price) {
+      showToast(`Noch ${sticker.price - game.wallet} Bergfunken bis zu ${sticker.name}.`);
+      return null;
+    }
+    game.wallet -= sticker.price;
+    game.ownedStickers.add(sticker.id);
+    game.recentStickerIds = new Set([sticker.id]);
+    saveProgress();
+    updateHud();
+    playTone(sticker.price >= 22 ? 760 : 620, .16, "sine", .045, sticker.price >= 22 ? 360 : 220);
+    renderStickerAlbum(sticker.id);
+    showToast(`${sticker.name} gekauft · ${sticker.price} Bergfunken.`);
+    return sticker;
+  }
+
+  function openStickerPack() {
+    const rewards = nextStickerRewards([...game.ownedStickers], STICKER_PACK_SIZE);
+    if (!rewards.length) {
+      showToast("Dein Stickeralbum ist bereits vollständig!");
+      return [];
+    }
+    if (game.wallet < STICKER_PACK_COST) {
+      showToast(`Noch ${STICKER_PACK_COST - game.wallet} Bergfunken bis zum nächsten Stickerpack.`);
+      return [];
+    }
+    game.wallet -= STICKER_PACK_COST;
+    rewards.forEach((sticker) => game.ownedStickers.add(sticker.id));
+    game.recentStickerIds = new Set(rewards.map((sticker) => sticker.id));
+    saveProgress();
+    updateHud();
+    ui.stickerPackButton.closest(".sticker-pack-card")?.classList.remove("is-opening");
+    requestAnimationFrame(() => ui.stickerPackButton.closest(".sticker-pack-card")?.classList.add("is-opening"));
+    playTone(620, .14, "sine", .045, 300);
+    renderStickerAlbum(rewards[0].id);
+    showToast(`${rewards.length} neue Sticker: ${rewards.map((sticker) => sticker.name).join(", ")}!`);
+    return rewards;
+  }
+
+  function renderFinishStickerShop() {
+    ui.finishStickerGrid.replaceChildren();
+    ui.finishStickers.hidden = false;
+    ui.finishStickerTitle.textContent = "Bergfunken gegen Wunschmotive";
+    const wallet = document.createElement("strong");
+    wallet.className = "finish-sticker-wallet";
+    wallet.textContent = `${game.wallet} ◆`;
+    wallet.setAttribute("aria-label", `${game.wallet} Bergfunken verfügbar`);
+    ui.finishStickerGrid.append(wallet);
+  }
+
+  function renderChapterRewards() {
+    ui.chapterRewards.replaceChildren();
+    for (const reward of chapterRewardStatuses(game.levelMedals, [...game.claimedChapterRewards])) {
+      const card = document.createElement("article");
+      card.className = `chapter-reward${reward.claimed ? " is-claimed" : ""}`;
+      card.style.setProperty("--reward-color", reward.color);
+      card.innerHTML = `<span aria-hidden="true">${reward.mark}</span><div><b>${reward.title}</b><small>${reward.earnedMedals}/${reward.requiredMedals} Medaillen · ${reward.sparkBonus} ◆</small></div><em>${reward.claimed ? "Freigeschaltet" : "Noch offen"}</em>`;
+      ui.chapterRewards.append(card);
     }
   }
 
   function renderLevelGrid() {
     ui.levelGrid.replaceChildren();
+    const totalPossible = LEVELS.length * MEDAL_DEFINITIONS.length;
+    const totalEarned = medalCount(game.levelMedals, LEVELS.map((_, index) => index));
+    ui.totalMedalCount.textContent = totalEarned;
+    ui.totalMedalProgress.style.width = `${totalPossible ? totalEarned / totalPossible * 100 : 0}%`;
+    renderChapterRewards();
     LEVELS.forEach((level, index) => {
       const button = document.createElement("button");
       const locked = index >= game.unlocked;
@@ -261,7 +432,9 @@
       button.style.setProperty("--level-color", level.accent);
       button.disabled = locked;
       const bestTime = Number(game.bestTimes[index]);
-      button.innerHTML = `<span class="level-number">${level.bonus ? "★" : index + 1}</span><b>${level.short}</b><small>${level.subtitle}</small>${Number.isFinite(bestTime) ? `<small class="level-best">Bestzeit · ${formatTime(bestTime, true)}</small>` : ""}`;
+      const medals = normalizeMedalRecord(game.levelMedals[index]);
+      const medalMarks = MEDAL_DEFINITIONS.map((medal) => `<i class="${medals[medal.key] ? "is-earned" : ""}" title="${medal.title}" aria-label="${medal.title}: ${medals[medal.key] ? "verdient" : "offen"}">${medal.mark}</i>`).join("");
+      button.innerHTML = `<span class="level-number">${level.bonus ? "★" : index + 1}</span><b>${level.short}</b><small>${level.subtitle}</small><span class="level-medals">${medalMarks}</span><small class="level-target">Meisterzeit · ${formatTime(level.masteryTime, true)}</small>${Number.isFinite(bestTime) ? `<small class="level-best">Bestzeit · ${formatTime(bestTime, true)}</small>` : ""}`;
       button.addEventListener("click", () => startLevel(index));
       ui.levelGrid.append(button);
     });
@@ -275,6 +448,10 @@
       renderOutfitShop,
       renderSkillTree,
       renderInventory,
+      renderStickerAlbum,
+      buySticker,
+      openStickerPack,
+      renderFinishStickerShop,
       renderLevelGrid,
     };
   }
